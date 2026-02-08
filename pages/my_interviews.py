@@ -1,6 +1,32 @@
 import streamlit as st
 from datetime import datetime
 
+# Function to load feedback from other pages
+def load_feedback_from_sessions():
+    """
+    Load feedback from mock_interview and resume pages into interviews_data
+    This ensures comments are synced from other pages
+    """
+    # Mock interview feedback
+    if 'interview_feedback' in st.session_state:
+        for interview_id, feedback_data in st.session_state.interview_feedback.items():
+            # Find the interview in interviews_data
+            existing = next((item for item in st.session_state.interviews_data 
+                           if item['id'] == interview_id), None)
+            if existing and feedback_data:
+                # Update score and comments from feedback
+                existing['score'] = feedback_data.get('overall_score', existing['score'])
+    
+    # Resume feedback
+    if 'resume_feedback' in st.session_state:
+        for resume_id, feedback_data in st.session_state.resume_feedback.items():
+            # Find the resume in interviews_data
+            existing = next((item for item in st.session_state.interviews_data 
+                           if item['id'] == resume_id), None)
+            if existing and feedback_data:
+                # Update score and comments from feedback
+                existing['score'] = feedback_data.get('overall_score', existing['score'])
+
 st.set_page_config(page_title="My Interviews", page_icon="📝", layout="wide")
 
 # Top bar with logo and title
@@ -15,6 +41,9 @@ with col2:
 
 st.markdown("---")
 
+# Load any feedback from other pages
+load_feedback_from_sessions()
+
 # Hardcoded data, can replace if needed
 if 'interviews_data' not in st.session_state:
     st.session_state.interviews_data = [
@@ -25,7 +54,28 @@ if 'interviews_data' not in st.session_state:
             "date": "02/01/26",
             "score": 92,
             "content": "Resume content here...",
-            "comments": []
+            "comments": [
+                {
+                    "title": "📊 Score Breakdown",
+                    "text": "• Overall: 92%\n• Formatting: 95%\n• Content: 88%\n• ATS Compatibility: 93%"
+                },
+                {
+                    "title": "✅ Strengths",
+                    "text": "• Clean, professional formatting\n• Strong action verbs used throughout\n• Quantifiable achievements included\n• Good keyword optimization for ATS"
+                },
+                {
+                    "title": "⚠️ Moderate Issues",
+                    "text": "• Skills section could be more prominent"
+                },
+                {
+                    "title": "💡 Minor Improvements",
+                    "text": "• Consider adding a summary statement\n• Some dates formatting inconsistent"
+                },
+                {
+                    "title": "🎯 Recommendations",
+                    "text": "• Add more industry-specific keywords\n• Consider reorganizing experience by relevance\n• Include LinkedIn profile link\n• Use consistent bullet point format"
+                }
+            ]
         },
         {
             "id": 2,
@@ -34,7 +84,24 @@ if 'interviews_data' not in st.session_state:
             "date": "01/28/26",
             "score": 78,
             "content": "Interview notes here...",
-            "comments": []
+            "comments": [
+                {
+                    "title": "✅ Strengths",
+                    "text": "• Clear and confident communication\n• Good use of STAR method in responses\n• Demonstrated relevant experience"
+                },
+                {
+                    "title": "🎯 Areas for Improvement",
+                    "text": "• Could provide more specific examples\n• Work on reducing filler words\n• Maintain better eye contact"
+                },
+                {
+                    "title": "❓ Tell me about yourself",
+                    "text": "Good structure, but could be more concise. Try to keep it under 2 minutes."
+                },
+                {
+                    "title": "❓ Why do you want to work here?",
+                    "text": "Excellent connection between your values and company mission."
+                }
+            ]
         },
         {
             "id": 3,
@@ -229,30 +296,35 @@ if st.session_state.selected_item is not None:
     with content_col2:
         st.markdown("### Comments")
         
-        # Display existing comments
+        # Display existing comments in a styled format
         if item["comments"]:
             for comment in item["comments"]:
+                # Display comment title as a bullet point
                 st.markdown(f"**• {comment['title']}**")
-                st.markdown(f"{comment['text']}")
-                st.markdown("---")
+                # Display comment text with proper styling
+                st.markdown(f"<div style='margin-left: 20px; margin-bottom: 15px; color: #E0E0E0;'>{comment['text']}</div>", 
+                           unsafe_allow_html=True)
         else:
-            st.info("No comments yet. Add your feedback below!")
+            st.info("No feedback yet. Complete a mock interview or upload a resume to see AI-generated feedback here!")
         
-        # Add new comment
-        with st.form("comment_form", clear_on_submit=True):
-            comment_title = st.text_input("Comment Title")
-            comment_text = st.text_area("Comment Details")
-            submit_button = st.form_submit_button("Add Comment")
-            
-            if submit_button and comment_title and comment_text:
-                if "comments" not in item:
-                    item["comments"] = []
-                item["comments"].append({
-                    "title": comment_title,
-                    "text": comment_text
-                })
-                st.success("Comment added!")
-                st.rerun()
+        st.markdown("---")
+        
+        # Add manual comment section (optional)
+        with st.expander("➕ Add Manual Note"):
+            with st.form("comment_form", clear_on_submit=True):
+                comment_title = st.text_input("Note Title")
+                comment_text = st.text_area("Note Details")
+                submit_button = st.form_submit_button("Add Note")
+                
+                if submit_button and comment_title and comment_text:
+                    if "comments" not in item:
+                        item["comments"] = []
+                    item["comments"].append({
+                        "title": comment_title,
+                        "text": comment_text
+                    })
+                    st.success("Note added!")
+                    st.rerun()
 
 else:
     # Display grid of cards
@@ -288,7 +360,7 @@ else:
                         st.markdown(card_html, unsafe_allow_html=True)
                         
                         # Button to select this item (hidden, triggered by card area)
-                        if st.button(f"View Details###{item['id']}", key=f"btn_{item['id']}", use_container_width=True):
+                        if st.button(f"View Details   {item['id']}", key=f"btn_{item['id']}", use_container_width=True):
                             st.session_state.selected_item = item
                             st.rerun()
 
