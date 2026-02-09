@@ -39,37 +39,60 @@ if 'all_docs' not in st.session_state:
          "tldr": "Tracking of hours and project impact."}
     ]
 
-# 3. STYLING
+# 3. LIGHT/DARK MODE–ADAPTIVE STYLING
 st.markdown("""
-    <style>
-    @import url('https://fonts.googleapis.com');
-    .stApp { background-color: #F8FAFC; }
-    .main-header {
-        font-family: 'Inter', sans-serif;
-        color: #0F172A; 
-        font-size: 3.5rem;
-        font-weight: 800;
-        letter-spacing: -2px;
-        margin-bottom: 0px;
-    }
-    .navy-tagline {
-        color: #1E3A8A; 
-        font-family: 'Inter', sans-serif;
-        font-size: 1.25rem;
-        font-weight: 500;
-        margin-top: -10px;
-        margin-bottom: 40px;
-    }
-    div[data-testid="stVerticalBlockBorderWrapper"] {
-        background-color: white;
-        border: 1px solid #E2E8F0;
-        border-radius: 16px;
-        box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05);
-    }
-    h3 { color: #1E3A8A !important; font-weight: 700 !important; }
-    .stExpander { border: 2px solid #1E3A8A !important; border-radius: 12px !important; }
-    </style>
-    """, unsafe_allow_html=True)
+<style>
+@import url('https://fonts.googleapis.com');
+
+.stApp {
+    background-color: var(--background-color);
+    color: var(--text-color);
+}
+
+.main-header {
+    font-family: 'Inter', sans-serif;
+    color: var(--text-color);
+    font-size: 3.5rem;
+    font-weight: 800;
+    letter-spacing: -2px;
+    margin-bottom: 0px;
+}
+
+.navy-tagline {
+    color: var(--primary-color);
+    font-family: 'Inter', sans-serif;
+    font-size: 1.25rem;
+    font-weight: 500;
+    margin-top: -10px;
+    margin-bottom: 40px;
+}
+
+div[data-testid="stVerticalBlockBorderWrapper"] {
+    background-color: var(--secondary-background-color);
+    border: 1px solid var(--text-color);
+    border-radius: 16px;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05);
+}
+
+h3 {
+    color: var(--primary-color) !important;
+    font-weight: 700 !important;
+}
+
+/* 🔥 Document titles wrap cleanly */
+.doc-title {
+    white-space: normal !important;
+    word-wrap: break-word !important;
+    overflow-wrap: break-word !important;
+}
+
+/* Expander styling */
+.stExpander {
+    border: 2px solid var(--primary-color) !important;
+    border-radius: 12px !important;
+}
+</style>
+""", unsafe_allow_html=True)
 
 # 4. HEADER SECTION
 st.markdown('<h1 class="main-header">Document Hub</h1>', unsafe_allow_html=True)
@@ -122,20 +145,19 @@ for row_idx, row in enumerate(rows):
             if ren_key not in st.session_state: st.session_state[ren_key] = False
 
             with st.container(border=True):
-                # FIXED: Added '2' to st.columns
                 t1, t2 = st.columns(2)
                 with t1:
-                    st.markdown(f"### {doc['title']}")
+                    st.markdown(f"<h3 class='doc-title'>{doc['title']}</h3>", unsafe_allow_html=True)
                 with t2:
                     with st.popover("⋮"):
                         if st.button("📝 Rename", key=f"r_{i}_{doc['title']}", use_container_width=True):
-                            st.session_state[ren_key] = not st.session_state[ren_key];
+                            st.session_state[ren_key] = not st.session_state[ren_key]
                             st.rerun()
                         if st.button("✨ Summary", key=f"s_{i}_{doc['title']}", use_container_width=True):
-                            st.session_state[sum_key] = not st.session_state[sum_key];
+                            st.session_state[sum_key] = not st.session_state[sum_key]
                             st.rerun()
                         if st.button("🗑️ Remove", key=f"d_{i}_{doc['title']}", use_container_width=True):
-                            st.session_state.all_docs.remove(doc);
+                            st.session_state.all_docs.remove(doc)
                             st.rerun()
 
                 date_obj = datetime.strptime(doc['date'], "%Y-%m-%d")
@@ -151,8 +173,8 @@ for row_idx, row in enumerate(rows):
                 if st.session_state[ren_key]:
                     new_n = st.text_input("New Name:", value=doc['title'], key=f"in_{i}_{doc['title']}")
                     if st.button("Confirm", key=f"sv_{i}_{doc['title']}"):
-                        doc['title'] = new_n;
-                        st.session_state[ren_key] = False;
+                        doc['title'] = new_n
+                        st.session_state[ren_key] = False
                         st.rerun()
 
                 if st.session_state[sum_key]:
@@ -161,7 +183,7 @@ for row_idx, row in enumerate(rows):
 
 # 8. AI GROWTH SUITE
 st.write("##")
-st.markdown("<h2 style='color: #0F172A; font-weight: 900;'>🚀 AI Growth Suite</h2>", unsafe_allow_html=True)
+st.markdown("<h2 style='color: var(--text-color); font-weight: 900;'>🚀 AI Growth Suite</h2>", unsafe_allow_html=True)
 with st.expander("Analyze Professional Trajectory", expanded=True):
     t1, t2, t3 = st.tabs(["📊 Evolution Summary", "🔍 Growth Comparison", "💬 Personal AI Coach"])
 
@@ -177,7 +199,6 @@ with st.expander("Analyze Professional Trajectory", expanded=True):
 
     with t2:
         st.write("Select two documents to see specific improvements in your professional voice.")
-        # FIXED: Added '2' to st.columns
         ca, cb = st.columns(2)
         with ca: d1 = st.selectbox("Old Document", [d['title'] for d in st.session_state.all_docs], key="c1")
         with cb: d2 = st.selectbox("New Document", [d['title'] for d in st.session_state.all_docs], key="c2")
