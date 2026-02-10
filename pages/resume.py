@@ -1,7 +1,6 @@
 import streamlit as st
 from datetime import datetime
-from pdf2image import convert_from_bytes
-import io
+import base64
 
 st.set_page_config(page_title="Resume Analyzer", page_icon="📄", layout="wide")
 
@@ -30,6 +29,14 @@ st.markdown("""
         color: #64748B;
         font-size: 1.1rem;
         margin-bottom: 2rem;
+    }
+
+    .pdf-viewer {
+        width: 100%;
+        height: 800px;
+        border: 2px solid var(--primary-navy);
+        border-radius: 12px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     }
 
     .chat-messages {
@@ -117,22 +124,18 @@ if 'chat_messages' not in st.session_state:
     st.session_state.chat_messages = []
 if 'uploaded_resume' not in st.session_state:
     st.session_state.uploaded_resume = None
-if 'pdf_images' not in st.session_state:
-    st.session_state.pdf_images = []
+if 'pdf_base64' not in st.session_state:
+    st.session_state.pdf_base64 = None
 
 
 # ========================================
 # HELPER FUNCTIONS
 # ========================================
-def convert_pdf_to_images(pdf_file):
-    """Convert PDF to images using pdf2image"""
-    try:
-        pdf_bytes = pdf_file.read()
-        images = convert_from_bytes(pdf_bytes, dpi=200)
-        return images
-    except Exception as e:
-        st.error(f"Error loading PDF: {str(e)}")
-        return []
+def display_pdf(file):
+    """Display PDF using embedded viewer"""
+    base64_pdf = base64.b64encode(file.read()).decode('utf-8')
+    pdf_display = f'<iframe src="data:application/pdf;base64,{base64_pdf}" class="pdf-viewer" type="application/pdf"></iframe>'
+    return pdf_display
 
 
 def save_to_my_uploads(resume_file):
@@ -187,8 +190,7 @@ if st.session_state.uploaded_resume is None:
 
     if uploaded_file is not None:
         st.session_state.uploaded_resume = uploaded_file
-        with st.spinner("Loading PDF..."):
-            st.session_state.pdf_images = convert_pdf_to_images(uploaded_file)
+        st.session_state.pdf_base64 = base64.b64encode(uploaded_file.read()).decode('utf-8')
         st.session_state.chat_messages.append({
             'type': 'system',
             'content': f'📁 Resume uploaded: {uploaded_file.name}'
@@ -215,7 +217,7 @@ else:
         if st.button("🔄 Upload New Resume", use_container_width=True):
             st.session_state.uploaded_resume = None
             st.session_state.chat_messages = []
-            st.session_state.pdf_images = []
+            st.session_state.pdf_base64 = None
             st.rerun()
 
     with button_col3:
@@ -232,11 +234,11 @@ else:
     with pdf_col:
         st.markdown("### 📄 Resume Preview")
 
-        if st.session_state.pdf_images:
-            for i, img in enumerate(st.session_state.pdf_images):
-                st.image(img, use_container_width=True, caption=f"Page {i + 1}")
+        if st.session_state.pdf_base64:
+            pdf_display = f'<iframe src="data:application/pdf;base64,{st.session_state.pdf_base64}" class="pdf-viewer" type="application/pdf"></iframe>'
+            st.markdown(pdf_display, unsafe_allow_html=True)
         else:
-            st.info("Loading PDF preview...")
+            st.info("No PDF to display")
 
     # CHAT INTERFACE
     with chat_col:
