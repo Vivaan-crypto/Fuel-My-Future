@@ -1,5 +1,6 @@
 import streamlit as st
 from datetime import datetime
+import time
 
 st.set_page_config(page_title="Mock Interview", page_icon="📝", layout="wide")
 
@@ -7,7 +8,6 @@ st.set_page_config(page_title="Mock Interview", page_icon="📝", layout="wide")
 col1, col2 = st.columns([1, 4])
 
 with col1:
-    # Placeholder logo - replace with your own image
     st.image("https://via.placeholder.com/150x150.png?text=Logo", width=150)
 
 with col2:
@@ -15,57 +15,54 @@ with col2:
 
 st.markdown("---")
 
-# ========================================
-# YOUR CODE STARTS HERE
-# ========================================
-
-# Initialize session state for storing interview feedback
+# Initialize session state
 if 'interview_feedback' not in st.session_state:
     st.session_state.interview_feedback = {}
 
+if 'current_question' not in st.session_state:
+    st.session_state.current_question = 0
+
+if 'questions' not in st.session_state:
+    st.session_state.questions = [
+        "Tell me about yourself and your background",
+        "What are your greatest strengths?",
+        "Describe a challenging project you worked on"
+    ]
+
+if 'answers' not in st.session_state:
+    st.session_state.answers = [''] * len(st.session_state.questions)
+
+if 'is_recording' not in st.session_state:
+    st.session_state.is_recording = False
+
+if 'timer_start' not in st.session_state:
+    st.session_state.timer_start = None
+
 # Function to save interview feedback
 def save_interview_feedback(interview_id, feedback_data):
-    """
-    Save feedback for a completed mock interview
-    
-    Args:
-        interview_id: Unique identifier for the interview
-        feedback_data: Dictionary containing:
-            - overall_score: int (0-100)
-            - strengths: list of strings
-            - areas_for_improvement: list of strings
-            - detailed_feedback: list of dicts with 'question' and 'feedback'
-            - timestamp: datetime object
-    """
     st.session_state.interview_feedback[interview_id] = feedback_data
     
-    # Also update the interviews_data in session state for my_interviews page
     if 'interviews_data' not in st.session_state:
         st.session_state.interviews_data = []
     
-    # Find existing interview or create new entry
     existing = next((item for item in st.session_state.interviews_data if item['id'] == interview_id), None)
     
     if existing:
-        # Update existing interview with feedback
         existing['score'] = feedback_data['overall_score']
         existing['comments'] = []
         
-        # Add strengths as comments
         if feedback_data.get('strengths'):
             existing['comments'].append({
                 'title': '✅ Strengths',
                 'text': '\n'.join(f"• {s}" for s in feedback_data['strengths'])
             })
         
-        # Add areas for improvement
         if feedback_data.get('areas_for_improvement'):
             existing['comments'].append({
                 'title': '🎯 Areas for Improvement',
                 'text': '\n'.join(f"• {a}" for a in feedback_data['areas_for_improvement'])
             })
         
-        # Add detailed question feedback
         if feedback_data.get('detailed_feedback'):
             for item in feedback_data['detailed_feedback']:
                 existing['comments'].append({
@@ -73,48 +70,162 @@ def save_interview_feedback(interview_id, feedback_data):
                     'text': item['feedback']
                 })
 
-# PLACEHOLDER: Your mock interview logic here
-st.info("🎤 Mock Interview functionality placeholder")
-st.write("This is where your interview questions and recording logic will go.")
+# Main Layout: Sidebar + Main Content
+sidebar_col, main_col = st.columns([1, 3])
 
-# Example usage - Remove this and integrate with your actual interview code
-with st.expander("📝 Example: Generate Mock Feedback"):
-    st.write("This is a demonstration of how to save feedback after an interview.")
+# ========================================
+# LEFT SIDEBAR - Questions & Feedback
+# ========================================
+with sidebar_col:
+    st.subheader("📋 Questions")
     
-    if st.button("Simulate Interview Completion"):
-        # Example feedback data structure
-        example_feedback = {
-            'overall_score': 85,
-            'strengths': [
-                "Clear and confident communication",
-                "Good use of STAR method in responses",
-                "Demonstrated relevant experience"
-            ],
-            'areas_for_improvement': [
-                "Could provide more specific examples",
-                "Work on reducing filler words",
-                "Maintain better eye contact"
-            ],
-            'detailed_feedback': [
-                {
-                    'question': 'Tell me about yourself',
-                    'feedback': 'Good structure, but could be more concise. Try to keep it under 2 minutes.'
-                },
-                {
-                    'question': 'Why do you want to work here?',
-                    'feedback': 'Excellent connection between your values and company mission.'
-                }
-            ],
-            'timestamp': datetime.now()
-        }
+    # Display all questions with navigation
+    for i, q in enumerate(st.session_state.questions):
+        if st.button(f"Q{i+1}", key=f"nav_q{i}", use_container_width=True):
+            st.session_state.current_question = i
         
-        # Save the feedback (use actual interview ID from your interviews_data)
-        save_interview_feedback(2, example_feedback)  # Example: Home Depot Interview
-        st.success("✅ Feedback saved! Check 'My Interviews' page to see the comments.")
-        st.info("💡 Tip: Navigate to My Interviews → Home Depot Interview to see the feedback.")
-
-# Add your actual mock interview content here
+        # Show checkmark if answered
+        if st.session_state.answers[i]:
+            st.caption(f"✅ Answered")
+        else:
+            st.caption(f"❌ Not answered")
+    
+    st.markdown("---")
+    
+    # Feedback section in sidebar
+    st.subheader("💭 Feedback")
+    feedback_text = st.text_area(
+        "Notes/Comments",
+        placeholder="Add your notes here...",
+        height=200,
+        key="sidebar_feedback"
+    )
 
 # ========================================
-# YOUR CODE ENDS HERE
+# MAIN CONTENT AREA
 # ========================================
+with main_col:
+    # Top section with Q1, Q2, Q3 boxes
+    st.subheader("Interview Questions")
+    q_cols = st.columns(3)
+    
+    for i, col in enumerate(q_cols):
+        with col:
+            status = "✅" if st.session_state.answers[i] else "⭕"
+            if st.button(f"{status} Q{i+1}", key=f"top_q{i}", use_container_width=True):
+                st.session_state.current_question = i
+    
+    st.markdown("---")
+    
+    # Main content: Current Question + Recording Section
+    content_left, content_right = st.columns([2, 1])
+    
+    # Left: Current Question
+    with content_left:
+        current_q = st.session_state.current_question
+        
+        st.markdown(f"### Question {current_q + 1} of {len(st.session_state.questions)}")
+        st.info(st.session_state.questions[current_q])
+        
+        # Answer input
+        answer = st.text_area(
+            "Your Answer:",
+            value=st.session_state.answers[current_q],
+            height=200,
+            key=f"answer_input_{current_q}"
+        )
+        
+        # Save answer
+        if st.button("💾 Save Answer", use_container_width=True):
+            st.session_state.answers[current_q] = answer
+            st.success("Answer saved!")
+        
+        # Navigation buttons
+        nav_col1, nav_col2 = st.columns(2)
+        with nav_col1:
+            if current_q > 0:
+                if st.button("⬅️ Previous", use_container_width=True):
+                    st.session_state.current_question -= 1
+                    st.rerun()
+        
+        with nav_col2:
+            if current_q < len(st.session_state.questions) - 1:
+                if st.button("Next ➡️", use_container_width=True):
+                    st.session_state.answers[current_q] = answer
+                    st.session_state.current_question += 1
+                    st.rerun()
+    
+    # Right: Recording/Timer Section
+    with content_right:
+        st.markdown("### 🎙️ Recording")
+        
+        # Timer display
+        if st.session_state.timer_start:
+            elapsed = int(time.time() - st.session_state.timer_start)
+            minutes = elapsed // 60
+            seconds = elapsed % 60
+            st.markdown(f"## ⏱️ {minutes:02d}:{seconds:02d}")
+        else:
+            st.markdown("## ⏱️ 00:00")
+        
+        # Recording controls
+        if not st.session_state.is_recording:
+            if st.button("🔴 Start Recording", use_container_width=True):
+                st.session_state.is_recording = True
+                st.session_state.timer_start = time.time()
+                st.rerun()
+        else:
+            if st.button("⏹️ Stop Recording", use_container_width=True):
+                st.session_state.is_recording = False
+                st.session_state.timer_start = None
+                st.rerun()
+        
+        st.markdown("---")
+        
+        # Recording status
+        if st.session_state.is_recording:
+            st.success("🔴 Recording in progress...")
+        else:
+            st.info("⭕ Not recording")
+    
+    st.markdown("---")
+    
+    # Bottom: Submit Feedback Section
+    st.markdown("### 📤 Submit Feedback")
+    
+    submit_col1, submit_col2, submit_col3 = st.columns([2, 1, 1])
+    
+    with submit_col1:
+        overall_feedback = st.text_area(
+            "Overall Feedback",
+            placeholder="How did you do overall?",
+            height=100
+        )
+    
+    with submit_col2:
+        confidence_score = st.slider(
+            "Confidence Level",
+            min_value=0,
+            max_value=100,
+            value=50
+        )
+    
+    with submit_col3:
+        st.write("")  # Spacing
+        st.write("")  # Spacing
+        if st.button("🚀 Submit Interview", use_container_width=True, type="primary"):
+            # Create feedback data
+            feedback_data = {
+                'overall_score': confidence_score,
+                'strengths': ["Completed all questions"],
+                'areas_for_improvement': ["Continue practicing"],
+                'detailed_feedback': [
+                    {'question': q, 'feedback': a if a else "No answer provided"} 
+                    for q, a in zip(st.session_state.questions, st.session_state.answers)
+                ],
+                'timestamp': datetime.now()
+            }
+            
+            save_interview_feedback(2, feedback_data)
+            st.success("✅ Interview submitted successfully!")
+            st.balloons()
