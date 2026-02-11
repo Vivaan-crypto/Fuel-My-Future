@@ -1,7 +1,8 @@
 import streamlit as st
 from datetime import datetime
 import base64
-
+import yaml
+from google import genai
 st.set_page_config(page_title="Resume Analyzer", page_icon="📄", layout="wide")
 
 # ========================================
@@ -116,7 +117,11 @@ st.markdown("""
     }
 </style>
 """, unsafe_allow_html=True)
+with open('C:/Users/shahv/OneDrive/Documents/GitHub/Fuel-My-Future/config.yaml', 'r') as f:
+    file = yaml.safe_load(f)
 
+API_KEY = file['API_KEY']
+client = genai.Client(api_key=API_KEY)
 # ========================================
 # SESSION STATE
 # ========================================
@@ -282,7 +287,20 @@ else:
                     'type': 'user',
                     'content': user_input
                 })
+                try:
+                    response = client.models.generate_content(
+                        model="gemini-3-flash-preview",
+                        contents = user_input,
 
+                    )
+                    ai_reply = response.text
+
+                    st.session_state.chat_messages.append({
+                        'type': 'ai',
+                        'content': ai_reply
+                    })
+                except Exception as e:
+                    ai_reply = "Sorry, there was an error processing your request."
                 # PLACEHOLDER: Gemini AI will replace this
                 st.session_state.chat_messages.append({
                     'type': 'ai',
