@@ -27,7 +27,7 @@ def load_feedback_from_sessions():
                 # Update score and comments from feedback
                 existing['score'] = feedback_data.get('overall_score', existing['score'])
 
-st.set_page_config(page_title="My Interviews", page_icon="📝", layout="wide")
+st.set_page_config(page_title="My Results", page_icon="📝", layout="wide")
 
 # Top bar with logo and title
 col1, col2 = st.columns([1, 2])
