@@ -2,7 +2,7 @@ import streamlit as st
 from datetime import datetime
 
 # 1. PAGE CONFIG
-st.set_page_config(page_title="Fuel My Future | Document Hub", page_icon="📂", layout="wide")
+st.set_page_config(page_title="Document Hub", page_icon="📂", layout="wide")
 
 # 2. SESSION STATE INITIALIZATION
 if 'all_docs' not in st.session_state:
