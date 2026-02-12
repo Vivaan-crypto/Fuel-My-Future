@@ -403,7 +403,7 @@ else:
     button_col1, button_col2, button_col3, button_col4 = st.columns([2, 2, 2, 2])
 
     with button_col1:
-        if st.button("💾 Save to My Uploads", use_container_width=True):
+        if st.button("💾 Save to Document Hub", use_container_width=True):
             if save_to_my_uploads(st.session_state.uploaded_resume):
                 st.success("✅ Resume saved to My Uploads!")
                 st.session_state.chat_messages.append({
