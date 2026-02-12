@@ -107,10 +107,10 @@ with center_col:
     st.markdown('<h1 class="main-title">Fuel My Future</h1>', unsafe_allow_html=True)
     st.markdown('<p class="main-jingle">"Igniting Careers, Engineering Success."</p>', unsafe_allow_html=True)
 
-    st.page_link("pages/mock_interview.py", label="Mock Interview", icon="🎙️", use_container_width=True)
-    st.page_link("pages/my_results.py", label="My Results", icon="📅", use_container_width=True)
-    st.page_link("pages/Document_Hub.py", label="Document Hub", icon="📁", use_container_width=True)
-    st.page_link("pages/resume.py", label="Resume Builder", icon="📄", use_container_width=True)
+    st.page_link("pages/2_-_Mock_Interview.py", label="Mock Interview", icon="🎙️", use_container_width=True)
+    st.page_link("pages/3_-_My_Results.py", label="My Results", icon="📅", use_container_width=True)
+    st.page_link("pages/4_-_Resume.py", label="Resume Builder", icon="📄", use_container_width=True)
+    st.page_link("pages/5_-_Document_Hub.py", label="Document Hub", icon="📁", use_container_width=True)
 
 # RIGHT PANEL: AI Assistant
 with right_col:
