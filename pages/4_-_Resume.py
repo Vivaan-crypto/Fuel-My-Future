@@ -3,7 +3,7 @@ from datetime import datetime
 import base64
 import yaml
 from google import genai
-st.set_page_config(page_title="Resume Analyzer", page_icon="📄", layout="wide")
+st.set_page_config(page_title="Resume Analyzer", page_icon="", layout="wide")
 
 # ========================================
 # CUSTOM CSS
@@ -117,7 +117,7 @@ st.markdown("""
     }
 </style>
 """, unsafe_allow_html=True)
-with open('C:/Users/shahv/OneDrive/Documents/GitHub/Fuel-My-Future/config.yaml', 'r') as f:
+with open('config.yaml', 'r') as f:
     file = yaml.safe_load(f)
 
 API_KEY = file['API_KEY']
@@ -168,8 +168,7 @@ def save_to_my_uploads(resume_file):
 col1, col2 = st.columns([1, 4])
 
 with col1:
-    st.image("https://via.placeholder.com/150x150.png?text=Logo", width=150)
-
+    st.image("assets/logo.jpeg", width=150)
 with col2:
     st.markdown("<h1 class='main-header'>📄 AI Resume Analyzer</h1>", unsafe_allow_html=True)
     st.markdown("<p class='sub-header'>Upload your resume and chat with AI for feedback</p>", unsafe_allow_html=True)

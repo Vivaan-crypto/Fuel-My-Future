@@ -7,8 +7,7 @@ col1, col2 = st.columns([1, 4])
 
 with col1:
     # Placeholder logo - replace with your own image
-    st.image("https://via.placeholder.com/150x150.png?text=Logo", width=150)
-
+    st.image("assets/logo.jpeg", width=150)
 with col2:
     st.title("Dashboard")
 
