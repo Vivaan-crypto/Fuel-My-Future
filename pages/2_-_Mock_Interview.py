@@ -8,7 +8,8 @@ st.set_page_config(page_title="Mock Interview", page_icon="📝", layout="wide")
 col1, col2 = st.columns([1, 4])
 
 with col1:
-    st.image("assets/logo.jpeg", width=150)
+    st.image("https://via.placeholder.com/150x150.png?text=Logo", width=150)
+
 with col2:
     st.title("Mock Interview")
 
@@ -46,40 +47,168 @@ if 'current_interview_id' not in st.session_state:
 if 'interviews_data' not in st.session_state:
     st.session_state.interviews_data = []
 
-if 'interview_company' not in st.session_state:
-    st.session_state.interview_company = ''
+# Function to analyze answer quality
+def analyze_answer_quality(answer, question):
+    """Analyze answer quality based on multiple factors"""
+    if not answer or answer.strip() == '':
+        return {
+            'score': 0,
+            'word_count': 0,
+            'sentence_count': 0,
+            'has_examples': False,
+            'relevance': 'none'
+        }
+    
+    # Basic metrics
+    words = answer.split()
+    word_count = len(words)
+    sentences = answer.split('.')
+    sentence_count = len([s for s in sentences if s.strip()])
+    
+    # Check for examples/specifics (STAR method indicators)
+    example_keywords = ['example', 'instance', 'time when', 'situation', 'project', 
+                        'experience', 'specifically', 'resulted in', 'achieved', 'led to']
+    has_examples = any(keyword in answer.lower() for keyword in example_keywords)
+    
+    # Check for repetitive words (gibberish detection)
+    unique_words = len(set(word.lower() for word in words))
+    word_diversity = unique_words / word_count if word_count > 0 else 0
+    
+    # Check for very short repeated words (like "a a a a a")
+    avg_word_length = sum(len(word) for word in words) / word_count if word_count > 0 else 0
+    
+    # Question relevance check (basic)
+    question_keywords = question.lower().split()
+    relevance_score = sum(1 for word in words if word.lower() in question_keywords)
+    
+    # Calculate base score
+    score = 0
+    
+    # Length scoring (0-40 points)
+    if word_count >= 50:
+        score += 40
+    elif word_count >= 30:
+        score += 30
+    elif word_count >= 15:
+        score += 20
+    elif word_count >= 5:
+        score += 10
+    
+    # Sentence structure (0-20 points)
+    if sentence_count >= 3:
+        score += 20
+    elif sentence_count >= 2:
+        score += 10
+    elif sentence_count >= 1:
+        score += 5
+    
+    # Examples/specificity (0-20 points)
+    if has_examples:
+        score += 20
+    
+    # Word diversity bonus (0-20 points) - penalize gibberish
+    if word_diversity > 0.7:
+        score += 20
+    elif word_diversity > 0.5:
+        score += 10
+    elif word_diversity > 0.3:
+        score += 5
+    else:
+        score = max(0, score - 30)  # Heavy penalty for low diversity (gibberish)
+    
+    # Average word length check (gibberish typically has very short words)
+    if avg_word_length < 2:
+        score = max(0, score - 20)
+    
+    # Cap at 100
+    score = min(100, score)
+    
+    return {
+        'score': score,
+        'word_count': word_count,
+        'sentence_count': sentence_count,
+        'has_examples': has_examples,
+        'word_diversity': word_diversity,
+        'avg_word_length': avg_word_length
+    }
 
-if 'interview_position' not in st.session_state:
-    st.session_state.interview_position = ''
+# Function to generate detailed feedback
+def generate_detailed_feedback(answer, question, analysis):
+    """Generate specific, actionable feedback"""
+    feedback_parts = []
+    
+    score = analysis.get('score', 0)
+    word_count = analysis.get('word_count', 0)
+    has_examples = analysis.get('has_examples', False)
+    word_diversity = analysis.get('word_diversity', 0)
+    
+    # Overall quality assessment
+    if score >= 80:
+        feedback_parts.append("Strong response overall.")
+    elif score >= 60:
+        feedback_parts.append("Good foundation, but could be enhanced.")
+    elif score >= 40:
+        feedback_parts.append("Basic answer provided, needs more development.")
+    else:
+        feedback_parts.append("Needs significant improvement.")
+    
+    # Specific critiques and suggestions
+    if word_count == 0:
+        feedback_parts.append("No answer provided. Make sure to respond to every question.")
+    elif word_count < 20:
+        feedback_parts.append(f"Answer is too brief ({word_count} words). Aim for at least 30-50 words to adequately address the question.")
+    elif word_count < 30:
+        feedback_parts.append("Consider expanding your answer with more details and context.")
+    
+    # Check for gibberish/low quality
+    if word_diversity < 0.4 and word_count > 10:
+        feedback_parts.append("⚠️ Your answer appears to contain repetitive or nonsensical content. Focus on providing meaningful, diverse responses.")
+    
+    if analysis.get('avg_word_length', 0) < 2.5 and word_count > 10:
+        feedback_parts.append("⚠️ Answer quality concern detected. Ensure you're using complete, professional language.")
+    
+    # Examples and specificity
+    if not has_examples and score > 0:
+        if "yourself" in question.lower():
+            feedback_parts.append("Include specific details about your background, skills, and relevant experiences.")
+        elif "strengths" in question.lower():
+            feedback_parts.append("Provide concrete examples that demonstrate each strength you mention.")
+        elif "project" in question.lower() or "challenge" in question.lower():
+            feedback_parts.append("Use the STAR method (Situation, Task, Action, Result) to structure your response with specific examples.")
+        else:
+            feedback_parts.append("Add specific examples or instances to support your points.")
+    
+    # Structure suggestions
+    if analysis.get('sentence_count', 0) < 2 and word_count > 15:
+        feedback_parts.append("Break your response into multiple sentences for better clarity and flow.")
+    
+    # Positive reinforcement
+    if has_examples:
+        feedback_parts.append("✓ Good use of specific examples.")
+    
+    if word_diversity > 0.7:
+        feedback_parts.append("✓ Diverse vocabulary and well-articulated points.")
+    
+    if analysis.get('sentence_count', 0) >= 3:
+        feedback_parts.append("✓ Well-structured response with multiple points.")
+    
+    return " ".join(feedback_parts)
 
 # Function to calculate interview score
-def calculate_interview_score(answers):
-    """Calculate score based on answer completeness and length"""
+def calculate_interview_score(answers, questions):
+    """Calculate score based on answer quality analysis"""
     total_score = 0
     question_scores = []
+    all_analyses = []
     
-    for answer in answers:
-        if not answer or answer.strip() == '':
-            score = 0
-        else:
-            # Score based on answer length (simple scoring logic)
-            word_count = len(answer.split())
-            if word_count >= 50:
-                score = 100
-            elif word_count >= 30:
-                score = 80
-            elif word_count >= 15:
-                score = 60
-            elif word_count >= 5:
-                score = 40
-            else:
-                score = 20
-        
-        question_scores.append(score)
-        total_score += score
+    for answer, question in zip(answers, questions):
+        analysis = analyze_answer_quality(answer, question)
+        question_scores.append(analysis['score'])
+        all_analyses.append(analysis)
+        total_score += analysis['score']
     
     overall_score = total_score // len(answers) if answers else 0
-    return overall_score, question_scores
+    return overall_score, question_scores, all_analyses
 
 # Function to save interview feedback
 def save_interview_feedback(interview_id, feedback_data):
@@ -91,16 +220,12 @@ def save_interview_feedback(interview_id, feedback_data):
     
     interview_entry = {
         'id': interview_id,
-        'title': f"{feedback_data.get('company', 'Mock Interview')} Interview",
-        'type': 'interview',
-        'date': feedback_data['timestamp'].strftime("%m/%d/%y"),
+        'date': feedback_data['timestamp'].strftime("%Y-%m-%d"),
         'time': feedback_data['timestamp'].strftime("%I:%M %p"),
         'company': feedback_data.get('company', 'Mock Interview'),
         'position': feedback_data.get('position', 'Practice Session'),
         'score': feedback_data['overall_score'],
         'status': 'Completed',
-        'content': f"Interview for {feedback_data.get('position', 'Practice Session')}",
-        'questions_and_answers': feedback_data.get('questions_and_answers', []),
         'comments': []
     }
     
@@ -118,29 +243,18 @@ def save_interview_feedback(interview_id, feedback_data):
             'text': '\n'.join(f"• {a}" for a in feedback_data['areas_for_improvement'])
         })
     
-    # Add consolidated detailed question feedback (without question titles)
+    # Add detailed question feedback
     if feedback_data.get('detailed_feedback'):
-        # Extract unique feedback messages
-        feedback_messages = set()
         for item in feedback_data['detailed_feedback']:
-            feedback_messages.add(item['feedback'])
-        
-        # Add as bullet points if there are unique messages
-        if feedback_messages:
             interview_entry['comments'].append({
-                'title': '💭 Detailed Feedback',
-                'text': '\n'.join(f"• {msg}" for msg in sorted(feedback_messages))
+                'title': f"❓ {item['question'][:50]}...",
+                'text': item['feedback']
             })
     
     if existing_index is not None:
         st.session_state.interviews_data[existing_index] = interview_entry
     else:
-        # Clear sample data on first real interview
-        if st.session_state.get('has_sample_data', False):
-            st.session_state.interviews_data = [interview_entry]
-            st.session_state.has_sample_data = False
-        else:
-            st.session_state.interviews_data.append(interview_entry)
+        st.session_state.interviews_data.append(interview_entry)
 
 # Function to reset interview
 def reset_interview():
@@ -150,8 +264,6 @@ def reset_interview():
     st.session_state.timer_start = None
     st.session_state.interview_completed = False
     st.session_state.current_interview_id = int(time.time())  # New unique ID
-    st.session_state.interview_company = ''
-    st.session_state.interview_position = ''
 
 # Check if this is a new interview
 if st.session_state.current_interview_id is None:
@@ -159,6 +271,7 @@ if st.session_state.current_interview_id is None:
 
 # Display Results Page if interview is completed
 if st.session_state.interview_completed:
+    st.balloons()
     st.success("🎉 Interview Completed!")
     
     # Get the latest feedback
@@ -178,7 +291,8 @@ if st.session_state.interview_completed:
         st.metric("Questions Answered", f"{answered}/{len(st.session_state.questions)}")
     
     with col3:
-        avg_length = sum(len(a.split()) for a in st.session_state.answers) // len(st.session_state.answers)
+        total_words = sum(len(a.split()) for a in st.session_state.answers if a.strip())
+        avg_length = total_words // max(answered, 1)
         st.metric("Avg Answer Length", f"{avg_length} words")
     
     st.markdown("---")
@@ -188,13 +302,19 @@ if st.session_state.interview_completed:
     
     with col_left:
         st.markdown("### ✅ Strengths")
-        for strength in feedback.get('strengths', []):
-            st.success(f"• {strength}")
+        if feedback.get('strengths'):
+            for strength in feedback.get('strengths', []):
+                st.success(f"• {strength}")
+        else:
+            st.info("Keep practicing to develop your strengths!")
     
     with col_right:
         st.markdown("### 🎯 Areas for Improvement")
-        for area in feedback.get('areas_for_improvement', []):
-            st.warning(f"• {area}")
+        if feedback.get('areas_for_improvement'):
+            for area in feedback.get('areas_for_improvement', []):
+                st.warning(f"• {area}")
+        else:
+            st.info("Great job! Keep up the good work.")
     
     st.markdown("---")
     
@@ -202,10 +322,9 @@ if st.session_state.interview_completed:
     st.markdown("### 📝 Question Breakdown")
     
     for i, item in enumerate(feedback.get('detailed_feedback', [])):
-        with st.expander(f"Question {i+1}: {item['question'][:60]}..."):
+        with st.expander(f"Question {i+1} - Score: {item.get('score', 0)}/100 - {item['question'][:60]}..."):
             st.write("**Your Answer:**")
             st.info(st.session_state.answers[i] if st.session_state.answers[i] else "No answer provided")
-            st.write("**Score:**", item.get('score', 'N/A'))
             st.write("**Feedback:**")
             st.write(item['feedback'])
     
@@ -230,30 +349,6 @@ if st.session_state.interview_completed:
 
 else:
     # Normal Interview Flow
-    # Interview Setup Section
-    st.markdown("### Interview Setup")
-    setup_col1, setup_col2 = st.columns(2)
-    
-    with setup_col1:
-        company_input = st.text_input(
-            "🏢 Company Name", 
-            value=st.session_state.interview_company,
-            placeholder="e.g., Google, Amazon, etc.",
-            key="company_input"
-        )
-        st.session_state.interview_company = company_input
-    
-    with setup_col2:
-        position_input = st.text_input(
-            "💼 Position", 
-            value=st.session_state.interview_position,
-            placeholder="e.g., Software Engineer, Manager, etc.",
-            key="position_input"
-        )
-        st.session_state.interview_position = position_input
-    
-    st.markdown("---")
-    
     # Main Layout: Sidebar + Main Content
     sidebar_col, main_col = st.columns([1, 3])
     
@@ -342,6 +437,7 @@ else:
         # Right: Recording/Timer Section
         with content_right:
             st.markdown("### 🎙️ Recording")
+            st.caption("(Placeholder - Recording functionality coming soon)")
             
             # Timer display
             if st.session_state.timer_start:
@@ -398,10 +494,13 @@ else:
             st.write("")  # Spacing
             st.write("")  # Spacing
             if st.button("🚀 Submit Interview", use_container_width=True, type="primary"):
-                # Calculate scores
-                overall_score, question_scores = calculate_interview_score(st.session_state.answers)
+                # Calculate scores with detailed analysis
+                overall_score, question_scores, analyses = calculate_interview_score(
+                    st.session_state.answers, 
+                    st.session_state.questions
+                )
                 
-                # Generate strengths and improvements
+                # Generate strengths and improvements based on analysis
                 strengths = []
                 improvements = []
                 
@@ -412,35 +511,39 @@ else:
                 else:
                     improvements.append(f"Answer all questions ({answered_count}/{len(st.session_state.questions)} answered)")
                 
-                avg_words = sum(len(a.split()) for a in st.session_state.answers if a.strip()) // max(answered_count, 1)
+                # Check average word diversity (quality indicator)
+                if analyses and len(analyses) > 0:
+                    avg_diversity = sum(a.get('word_diversity', 0) for a in analyses) / len(analyses)
+                    if avg_diversity > 0.7:
+                        strengths.append("High-quality, diverse vocabulary throughout responses")
+                    elif avg_diversity < 0.4:
+                        improvements.append("Focus on providing meaningful, varied responses (avoid repetition)")
                 
-                if avg_words >= 50:
-                    strengths.append("Comprehensive and detailed answers")
-                elif avg_words >= 30:
-                    strengths.append("Good answer length")
-                else:
-                    improvements.append("Provide more detailed answers (aim for 30+ words)")
+                # Check for use of examples
+                example_count = sum(1 for a in analyses if a.get('has_examples', False))
+                if example_count >= 2:
+                    strengths.append("Good use of specific examples and details")
+                elif example_count == 0:
+                    improvements.append("Include specific examples using the STAR method (Situation, Task, Action, Result)")
                 
+                # Overall score assessment
+                if overall_score >= 80:
+                    strengths.append("Strong overall interview performance")
+                elif overall_score >= 60:
+                    strengths.append("Solid foundation with room for improvement")
+                elif overall_score < 40:
+                    improvements.append("Focus on providing complete, thoughtful answers to each question")
+                
+                # Confidence correlation
                 if confidence_score >= 70:
-                    strengths.append("High confidence level")
+                    strengths.append("High self-confidence")
                 elif confidence_score < 50:
-                    improvements.append("Work on building confidence")
+                    improvements.append("Build confidence through more practice and preparation")
                 
                 # Create detailed feedback for each question
                 detailed_feedback = []
-                for i, (q, a) in enumerate(zip(st.session_state.questions, st.session_state.answers)):
-                    word_count = len(a.split()) if a else 0
-                    
-                    if word_count >= 50:
-                        feedback = "Excellent detailed response! Good depth and structure."
-                    elif word_count >= 30:
-                        feedback = "Good answer. Consider adding more specific examples."
-                    elif word_count >= 15:
-                        feedback = "Basic answer provided. Expand with more details and examples."
-                    elif word_count > 0:
-                        feedback = "Answer too brief. Aim for at least 30 words with specific examples."
-                    else:
-                        feedback = "No answer provided. Make sure to answer all questions."
+                for i, (q, a, analysis) in enumerate(zip(st.session_state.questions, st.session_state.answers, analyses)):
+                    feedback = generate_detailed_feedback(a, q, analysis)
                     
                     detailed_feedback.append({
                         'question': q,
@@ -448,29 +551,15 @@ else:
                         'score': question_scores[i]
                     })
                 
-                # Create questions and answers list with feedback
-                questions_and_answers = []
-                for i, (q, a) in enumerate(zip(st.session_state.questions, st.session_state.answers)):
-                    questions_and_answers.append({
-                        'question': q,
-                        'answer': a if a else 'No answer provided',
-                        'feedback': detailed_feedback[i]['feedback'],
-                        'score': detailed_feedback[i]['score']
-                    })
-                
                 # Create feedback data
-                company_name = st.session_state.interview_company if st.session_state.interview_company else 'Mock Interview Practice'
-                position_name = st.session_state.interview_position if st.session_state.interview_position else 'General Interview'
-                
                 feedback_data = {
                     'overall_score': overall_score,
                     'confidence_level': confidence_score,
-                    'company': company_name,
-                    'position': position_name,
-                    'strengths': strengths,
-                    'areas_for_improvement': improvements,
+                    'company': 'Mock Interview Practice',
+                    'position': 'General Interview',
+                    'strengths': strengths if strengths else ["Keep practicing!"],
+                    'areas_for_improvement': improvements if improvements else ["Continue refining your responses"],
                     'detailed_feedback': detailed_feedback,
-                    'questions_and_answers': questions_and_answers,
                     'timestamp': datetime.now(),
                     'overall_notes': overall_feedback
                 }
@@ -481,4 +570,3 @@ else:
                 # Mark interview as completed
                 st.session_state.interview_completed = True
                 st.rerun()
-
