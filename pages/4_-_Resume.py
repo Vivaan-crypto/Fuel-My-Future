@@ -405,7 +405,7 @@ else:
     with button_col1:
         if st.button("💾 Save to Document Hub", use_container_width=True):
             if save_to_my_uploads(st.session_state.uploaded_resume):
-                st.success("✅ Resume saved to My Uploads!")
+                st.success("✅ Resume saved to Document Hub!")
                 st.session_state.chat_messages.append({
                     'type': 'system',
                     'content': '💾 Resume saved successfully'
