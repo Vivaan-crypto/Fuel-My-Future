@@ -4,16 +4,18 @@ import base64
 import yaml
 import tempfile
 import os
-import time
+import io
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import letter
+from reportlab.lib.colors import HexColor
+from PyPDF2 import PdfReader, PdfWriter
+from google import genai as genai
 
 try:
-    from google import genai as genai
 
     _GENAI_SDK = "google-genai"
 except ImportError:
     try:
-        import google.generativeai as genai
-
         _GENAI_SDK = "google-generativeai"
     except ImportError:
         genai = None
@@ -185,6 +187,10 @@ if 'initial_review_done' not in st.session_state:
     st.session_state.initial_review_done = False
 if 'processing' not in st.session_state:
     st.session_state.processing = False
+if 'annotated_pdf' not in st.session_state:
+    st.session_state.annotated_pdf = None
+if 'annotations' not in st.session_state:
+    st.session_state.annotations = []
 
 
 # ========================================
@@ -209,6 +215,126 @@ def get_ai_response(prompt_text):
         return response.text
     except Exception as e:
         return f'❌ Error: {str(e)}'
+
+
+def create_annotated_pdf(original_pdf_bytes, annotations):
+    """Create a PDF with annotations overlay"""
+    try:
+        # Read original PDF
+        original_pdf = PdfReader(io.BytesIO(original_pdf_bytes))
+        output_pdf = PdfWriter()
+
+        for page_num in range(len(original_pdf.pages)):
+            page = original_pdf.pages[page_num]
+
+            # Create annotation overlay
+            packet = io.BytesIO()
+            can = canvas.Canvas(packet, pagesize=letter)
+
+            # Get page dimensions
+            page_width = float(page.mediabox.width)
+            page_height = float(page.mediabox.height)
+
+            # Filter annotations for this page
+            page_annotations = [a for a in annotations if a.get('page', 0) == page_num]
+
+            # Add annotations to overlay
+            y_position = page_height - 50
+            for idx, annotation in enumerate(page_annotations):
+                # Draw comment box
+                comment_text = annotation.get('text', '')
+                x_pos = annotation.get('x', 400)
+
+                # Set colors and fonts
+                can.setFillColor(HexColor('#FBBF24'))
+                can.setStrokeColor(HexColor('#F59E0B'))
+                can.setLineWidth(2)
+
+                # Draw rounded rectangle
+                box_width = 180
+                box_height = 60
+                can.roundRect(x_pos, y_position - box_height, box_width, box_height, 5, fill=1, stroke=1)
+
+                # Add text
+                can.setFillColor(HexColor('#0F172A'))
+                can.setFont("Helvetica-Bold", 8)
+                can.drawString(x_pos + 5, y_position - 15, f"💡 AI Feedback #{idx + 1}")
+
+                can.setFont("Helvetica", 7)
+                # Wrap text
+                words = comment_text.split()
+                lines = []
+                current_line = []
+                for word in words[:15]:  # Limit to first 15 words
+                    current_line.append(word)
+                    if len(' '.join(current_line)) > 25:
+                        lines.append(' '.join(current_line[:-1]))
+                        current_line = [word]
+                if current_line:
+                    lines.append(' '.join(current_line))
+
+                for i, line in enumerate(lines[:3]):  # Max 3 lines
+                    can.drawString(x_pos + 5, y_position - 30 - (i * 10), line)
+
+                y_position -= 80
+
+            can.save()
+
+            # Merge overlay with original page
+            packet.seek(0)
+            overlay_pdf = PdfReader(packet)
+            page.merge_page(overlay_pdf.pages[0])
+            output_pdf.add_page(page)
+
+        # Write to bytes
+        output_bytes = io.BytesIO()
+        output_pdf.write(output_bytes)
+        output_bytes.seek(0)
+
+        return output_bytes.getvalue()
+
+    except Exception as e:
+        st.error(f"Error creating annotated PDF: {str(e)}")
+        return None
+
+
+def generate_annotations_from_ai():
+    """Get AI to generate specific annotations for resume sections"""
+    prompt = """Please analyze this resume and provide specific feedback for different sections. 
+
+For each major issue or improvement area, provide:
+1. The section it applies to (e.g., "Summary", "Experience", "Skills", "Education")
+2. A brief comment (max 10 words)
+
+Format your response as a numbered list like:
+1. Summary - Too generic, add specific achievements
+2. Experience - Quantify results with metrics
+3. Skills - Add industry-specific keywords
+4. Education - Include relevant coursework
+
+Provide 4-6 specific comments."""
+
+    response = get_ai_response(prompt)
+
+    # Parse response into annotations
+    annotations = []
+    lines = response.strip().split('\n')
+
+    y_positions = [720, 600, 480, 360, 240, 120]  # Different vertical positions
+
+    for idx, line in enumerate(lines[:6]):
+        if line.strip() and any(char.isdigit() for char in line[:3]):
+            # Extract comment text (remove number prefix)
+            comment = line.split('.', 1)[-1].strip() if '.' in line else line.strip()
+
+            annotations.append({
+                'page': 0,  # Assume single page for now
+                'x': 400,
+                'y': y_positions[idx] if idx < len(y_positions) else 100,
+                'text': comment
+            })
+
+    return annotations
 
 
 def save_to_my_uploads(resume_file):
@@ -274,7 +400,7 @@ if st.session_state.uploaded_resume is None:
 # ========================================
 else:
     # Action buttons
-    button_col1, button_col2, button_col3 = st.columns([2, 2, 2])
+    button_col1, button_col2, button_col3, button_col4 = st.columns([2, 2, 2, 2])
 
     with button_col1:
         if st.button("💾 Save to My Uploads", use_container_width=True):
@@ -286,15 +412,36 @@ else:
                 })
 
     with button_col2:
+        if st.button("📝 Add AI Comments to PDF", use_container_width=True):
+            with st.spinner("Generating annotated PDF..."):
+                # Generate annotations from AI
+                st.session_state.annotations = generate_annotations_from_ai()
+
+                # Create annotated PDF
+                original_pdf_bytes = base64.b64decode(st.session_state.pdf_base64)
+                annotated_pdf = create_annotated_pdf(original_pdf_bytes, st.session_state.annotations)
+
+                if annotated_pdf:
+                    st.session_state.annotated_pdf = base64.b64encode(annotated_pdf).decode('utf-8')
+                    st.success("✅ PDF annotated with AI comments!")
+                    st.session_state.chat_messages.append({
+                        'type': 'system',
+                        'content': '📝 AI comments added to PDF'
+                    })
+                    st.rerun()
+
+    with button_col3:
         if st.button("🔄 Upload New Resume", use_container_width=True):
             st.session_state.uploaded_resume = None
             st.session_state.chat_messages = []
             st.session_state.pdf_base64 = None
             st.session_state.uploaded_file_ref = None
             st.session_state.initial_review_done = False
+            st.session_state.annotated_pdf = None
+            st.session_state.annotations = []
             st.rerun()
 
-    with button_col3:
+    with button_col4:
         if st.button("🗑️ Clear Chat", use_container_width=True):
             st.session_state.chat_messages = []
             st.session_state.initial_review_done = False
@@ -308,6 +455,31 @@ else:
     # PDF VIEWER
     with pdf_col:
         st.markdown("### 📄 Resume Preview")
+
+        # Toggle between original and annotated
+        if st.session_state.annotated_pdf:
+            view_option = st.radio(
+                "View:",
+                ["Original Resume", "With AI Comments"],
+                horizontal=True,
+                label_visibility="collapsed"
+            )
+
+            if view_option == "With AI Comments":
+                pdf_to_display = st.session_state.annotated_pdf
+
+                # Download button for annotated PDF
+                st.download_button(
+                    label="⬇️ Download Annotated PDF",
+                    data=base64.b64decode(st.session_state.annotated_pdf),
+                    file_name="resume_with_ai_comments.pdf",
+                    mime="application/pdf",
+                    use_container_width=True
+                )
+            else:
+                pdf_to_display = st.session_state.pdf_base64
+        else:
+            pdf_to_display = st.session_state.pdf_base64
 
         if st.session_state.pdf_base64:
             # Upload the file to Gemini ONCE when first loaded
@@ -350,7 +522,7 @@ else:
                         })
 
             # Display PDF
-            pdf_display = f'<iframe src="data:application/pdf;base64,{st.session_state.pdf_base64}" class="pdf-viewer" type="application/pdf"></iframe>'
+            pdf_display = f'<iframe src="data:application/pdf;base64,{pdf_to_display}" class="pdf-viewer" type="application/pdf"></iframe>'
             st.markdown(pdf_display, unsafe_allow_html=True)
         else:
             st.info("No PDF to display")

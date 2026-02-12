@@ -4,7 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="6f1630b5-9765-43d7-8649-3d2548594329" name="Changes" comment="Added the logo">
+    <list default="true" id="6f1630b5-9765-43d7-8649-3d2548594329" name="Changes" comment="Resume page done">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/pages/4_-_Resume.py" beforeDir="false" afterPath="$PROJECT_DIR$/pages/4_-_Resume.py" afterDir="false" />
     </list>
@@ -217,7 +217,15 @@
       <option name="project" value="LOCAL" />
       <updated>1770902561703</updated>
     </task>
-    <option name="localTasksCounter" value="6" />
+    <task id="LOCAL-00006" summary="Resume page done">
+      <option name="closed" value="true" />
+      <created>1770904513153</created>
+      <option name="number" value="00006" />
+      <option name="presentableId" value="LOCAL-00006" />
+      <option name="project" value="LOCAL" />
+      <updated>1770904513153</updated>
+    </task>
+    <option name="localTasksCounter" value="7" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -237,7 +245,8 @@
     <MESSAGE value="Small Changes" />
     <MESSAGE value="AI Integrate" />
     <MESSAGE value="Added the logo" />
-    <option name="LAST_COMMIT_MESSAGE" value="Added the logo" />
+    <MESSAGE value="Resume page done" />
+    <option name="LAST_COMMIT_MESSAGE" value="Resume page done" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
