@@ -46,6 +46,12 @@ if 'current_interview_id' not in st.session_state:
 if 'interviews_data' not in st.session_state:
     st.session_state.interviews_data = []
 
+if 'interview_company' not in st.session_state:
+    st.session_state.interview_company = ''
+
+if 'interview_position' not in st.session_state:
+    st.session_state.interview_position = ''
+
 # Function to calculate interview score
 def calculate_interview_score(answers):
     """Calculate score based on answer completeness and length"""
@@ -85,12 +91,16 @@ def save_interview_feedback(interview_id, feedback_data):
     
     interview_entry = {
         'id': interview_id,
-        'date': feedback_data['timestamp'].strftime("%Y-%m-%d"),
+        'title': f"{feedback_data.get('company', 'Mock Interview')} Interview",
+        'type': 'interview',
+        'date': feedback_data['timestamp'].strftime("%m/%d/%y"),
         'time': feedback_data['timestamp'].strftime("%I:%M %p"),
         'company': feedback_data.get('company', 'Mock Interview'),
         'position': feedback_data.get('position', 'Practice Session'),
         'score': feedback_data['overall_score'],
         'status': 'Completed',
+        'content': f"Interview for {feedback_data.get('position', 'Practice Session')}",
+        'questions_and_answers': feedback_data.get('questions_and_answers', []),
         'comments': []
     }
     
@@ -108,18 +118,29 @@ def save_interview_feedback(interview_id, feedback_data):
             'text': '\n'.join(f"• {a}" for a in feedback_data['areas_for_improvement'])
         })
     
-    # Add detailed question feedback
+    # Add consolidated detailed question feedback (without question titles)
     if feedback_data.get('detailed_feedback'):
+        # Extract unique feedback messages
+        feedback_messages = set()
         for item in feedback_data['detailed_feedback']:
+            feedback_messages.add(item['feedback'])
+        
+        # Add as bullet points if there are unique messages
+        if feedback_messages:
             interview_entry['comments'].append({
-                'title': f"❓ {item['question'][:50]}...",
-                'text': item['feedback']
+                'title': '💭 Detailed Feedback',
+                'text': '\n'.join(f"• {msg}" for msg in sorted(feedback_messages))
             })
     
     if existing_index is not None:
         st.session_state.interviews_data[existing_index] = interview_entry
     else:
-        st.session_state.interviews_data.append(interview_entry)
+        # Clear sample data on first real interview
+        if st.session_state.get('has_sample_data', False):
+            st.session_state.interviews_data = [interview_entry]
+            st.session_state.has_sample_data = False
+        else:
+            st.session_state.interviews_data.append(interview_entry)
 
 # Function to reset interview
 def reset_interview():
@@ -129,6 +150,8 @@ def reset_interview():
     st.session_state.timer_start = None
     st.session_state.interview_completed = False
     st.session_state.current_interview_id = int(time.time())  # New unique ID
+    st.session_state.interview_company = ''
+    st.session_state.interview_position = ''
 
 # Check if this is a new interview
 if st.session_state.current_interview_id is None:
@@ -207,6 +230,30 @@ if st.session_state.interview_completed:
 
 else:
     # Normal Interview Flow
+    # Interview Setup Section
+    st.markdown("### Interview Setup")
+    setup_col1, setup_col2 = st.columns(2)
+    
+    with setup_col1:
+        company_input = st.text_input(
+            "🏢 Company Name", 
+            value=st.session_state.interview_company,
+            placeholder="e.g., Google, Amazon, etc.",
+            key="company_input"
+        )
+        st.session_state.interview_company = company_input
+    
+    with setup_col2:
+        position_input = st.text_input(
+            "💼 Position", 
+            value=st.session_state.interview_position,
+            placeholder="e.g., Software Engineer, Manager, etc.",
+            key="position_input"
+        )
+        st.session_state.interview_position = position_input
+    
+    st.markdown("---")
+    
     # Main Layout: Sidebar + Main Content
     sidebar_col, main_col = st.columns([1, 3])
     
@@ -401,15 +448,29 @@ else:
                         'score': question_scores[i]
                     })
                 
+                # Create questions and answers list with feedback
+                questions_and_answers = []
+                for i, (q, a) in enumerate(zip(st.session_state.questions, st.session_state.answers)):
+                    questions_and_answers.append({
+                        'question': q,
+                        'answer': a if a else 'No answer provided',
+                        'feedback': detailed_feedback[i]['feedback'],
+                        'score': detailed_feedback[i]['score']
+                    })
+                
                 # Create feedback data
+                company_name = st.session_state.interview_company if st.session_state.interview_company else 'Mock Interview Practice'
+                position_name = st.session_state.interview_position if st.session_state.interview_position else 'General Interview'
+                
                 feedback_data = {
                     'overall_score': overall_score,
                     'confidence_level': confidence_score,
-                    'company': 'Mock Interview Practice',
-                    'position': 'General Interview',
+                    'company': company_name,
+                    'position': position_name,
                     'strengths': strengths,
                     'areas_for_improvement': improvements,
                     'detailed_feedback': detailed_feedback,
+                    'questions_and_answers': questions_and_answers,
                     'timestamp': datetime.now(),
                     'overall_notes': overall_feedback
                 }

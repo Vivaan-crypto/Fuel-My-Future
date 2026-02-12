@@ -2,8 +2,17 @@ import streamlit as st
 from datetime import datetime
 import base64
 import yaml
-from google import genai
-st.set_page_config(page_title="Resume Analyzer", page_icon="", layout="wide")
+try:
+    from google import genai as genai
+    _GENAI_SDK = "google-genai"
+except ImportError:
+    try:
+        import google.generativeai as genai
+        _GENAI_SDK = "google-generativeai"
+    except ImportError:
+        genai = None
+        _GENAI_SDK = None
+st.set_page_config(page_title="Resume Analyzer", page_icon="📄", layout="wide")
 
 # ========================================
 # CUSTOM CSS
@@ -121,7 +130,14 @@ with open('config.yaml', 'r') as f:
     file = yaml.safe_load(f)
 
 API_KEY = file['API_KEY']
-client = genai.Client(api_key=API_KEY)
+client = None
+if genai is None:
+    st.error("Missing Google AI SDK. Install `google-genai` or `google-generativeai`.")
+elif hasattr(genai, "Client"):
+    client = genai.Client(api_key=API_KEY)
+else:
+    genai.configure(api_key=API_KEY)
+    client = genai.GenerativeModel("gemini-1.5-flash")
 # ========================================
 # SESSION STATE
 # ========================================
