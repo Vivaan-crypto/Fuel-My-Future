@@ -4,20 +4,8 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="6f1630b5-9765-43d7-8649-3d2548594329" name="Changes" comment="AI Integrate">
-      <change afterPath="$PROJECT_DIR$/.idea/Fuel-My-Future.iml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/betterCommentsSettings.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/copilot.data.migration.ask2agent.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/inspectionProfiles/Project_Default.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/inspectionProfiles/profiles_settings.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/assets/logo.jpeg" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app.py" beforeDir="false" afterPath="$PROJECT_DIR$/app.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pages/1_-_Dashboard.py" beforeDir="false" afterPath="$PROJECT_DIR$/pages/1_-_Dashboard.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pages/2_-_Mock_Interview.py" beforeDir="false" afterPath="$PROJECT_DIR$/pages/2_-_Mock_Interview.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pages/3_-_My_Results.py" beforeDir="false" afterPath="$PROJECT_DIR$/pages/3_-_My_Results.py" afterDir="false" />
+    <list default="true" id="6f1630b5-9765-43d7-8649-3d2548594329" name="Changes" comment="Added the logo">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/pages/4_-_Resume.py" beforeDir="false" afterPath="$PROJECT_DIR$/pages/4_-_Resume.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -221,7 +209,15 @@
       <option name="project" value="LOCAL" />
       <updated>1770818445141</updated>
     </task>
-    <option name="localTasksCounter" value="5" />
+    <task id="LOCAL-00005" summary="Added the logo">
+      <option name="closed" value="true" />
+      <created>1770902561703</created>
+      <option name="number" value="00005" />
+      <option name="presentableId" value="LOCAL-00005" />
+      <option name="project" value="LOCAL" />
+      <updated>1770902561703</updated>
+    </task>
+    <option name="localTasksCounter" value="6" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -240,7 +236,8 @@
     <MESSAGE value="Basic UI complete. Still have to work on the backend / logic." />
     <MESSAGE value="Small Changes" />
     <MESSAGE value="AI Integrate" />
-    <option name="LAST_COMMIT_MESSAGE" value="AI Integrate" />
+    <MESSAGE value="Added the logo" />
+    <option name="LAST_COMMIT_MESSAGE" value="Added the logo" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
