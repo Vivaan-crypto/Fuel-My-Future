@@ -191,11 +191,141 @@ if 'annotated_pdf' not in st.session_state:
     st.session_state.annotated_pdf = None
 if 'annotations' not in st.session_state:
     st.session_state.annotations = []
+if 'resume_feedback' not in st.session_state:
+    st.session_state.resume_feedback = {}
+if 'interviews_data' not in st.session_state:
+    st.session_state.interviews_data = []
+if 'current_resume_id' not in st.session_state:
+    st.session_state.current_resume_id = None
 
 
 # ========================================
 # HELPER FUNCTIONS
 # ========================================
+def extract_score_from_response(ai_response):
+    """Extract numerical score from AI response (converts 1-10 to percentage)"""import re
+    # Look for patterns like "score: 8", "Score: 8/10", "8 out of 10", etc.
+    patterns = [
+        r'score[:\s]+([0-9]+(?:\.[0-9]+)?)/10',
+        r'score[:\s]+([0-9]+(?:\.[0-9]+)?)',
+        r'([0-9]+(?:\.[0-9]+)?)/10',
+        r'([0-9]+(?:\.[0-9]+)?)\s*out of 10'
+    ]
+    
+    for pattern in patterns:
+        match = re.search(pattern, ai_response.lower())
+        if match:
+            score = float(match.group(1))
+            # Convert to percentage (0-100)
+            if score <= 10:
+                return int(score * 10)
+            return int(score)
+    
+    # Default score if no score found
+    return 75
+
+def parse_resume_feedback(ai_response):
+    """Parse AI response into structured feedback sections"""    sections = {
+        'strengths': [],
+        'improvements': [],
+        'ats': [],
+        'next_steps': []
+    }
+    
+    # Split by numbered sections
+    lines = ai_response.split('\n')
+    current_section = None
+    
+    for line in lines:
+        line = line.strip()
+        if not line:
+            continue
+        
+        # Detect section headers
+        lower_line = line.lower()
+        if 'strength' in lower_line and ':' in line:
+            current_section = 'strengths'
+        elif 'improvement' in lower_line and ':' in line:
+            current_section = 'improvements'
+        elif 'ats' in lower_line and ':' in line:
+            current_section = 'ats'
+        elif 'next step' in lower_line and ':' in line:
+            current_section = 'next_steps'
+        elif current_section and (line.startswith('-') or line.startswith('•') or line[0].isdigit()):
+            # Add bullet point to current section
+            clean_line = line.lstrip('-•0123456789. ').strip()
+            if clean_line:
+                sections[current_section].append(clean_line)
+    
+    return sections
+
+def save_resume_feedback(resume_id, resume_name, ai_response):
+    """Save resume feedback to session state for results page integration"""    score = extract_score_from_response(ai_response)
+    feedback_sections = parse_resume_feedback(ai_response)
+    
+    feedback_data = {
+        'timestamp': datetime.now(),
+        'resume_name': resume_name,
+        'overall_score': score,
+        'ai_response': ai_response,
+        'sections': feedback_sections
+    }
+    
+    st.session_state.resume_feedback[resume_id] = feedback_data
+    
+    # Create or update resume entry in interviews_data
+    existing_index = next((i for i, item in enumerate(st.session_state.interviews_data) 
+                          if item.get('id') == resume_id), None)
+    
+    resume_entry = {
+        'id': resume_id,
+        'type': 'resume',
+        'title': f"{resume_name} Resume",
+        'date': datetime.now().strftime("%m/%d/%y"),
+        'score': score,
+        'content': ai_response,
+        'comments': []
+    }
+    
+    # Add score breakdown
+    resume_entry['comments'].append({
+        'title': '📊 Score Breakdown',
+        'text': f"• Overall: {score}%\n• Based on AI comprehensive analysis"
+    })
+    
+    # Add strengths
+    if feedback_sections['strengths']:
+        resume_entry['comments'].append({
+            'title': '✅ Strengths',
+            'text': '\n'.join(f"• {s}" for s in feedback_sections['strengths'])
+        })
+    
+    # Add improvements
+    if feedback_sections['improvements']:
+        resume_entry['comments'].append({
+            'title': '⚠️ Areas for Improvement',
+            'text': '\n'.join(f"• {i}" for i in feedback_sections['improvements'])
+        })
+    
+    # Add ATS suggestions
+    if feedback_sections['ats']:
+        resume_entry['comments'].append({
+            'title': '🤖 ATS Optimization',
+            'text': '\n'.join(f"• {a}" for a in feedback_sections['ats'])
+        })
+    
+    # Add next steps
+    if feedback_sections['next_steps']:
+        resume_entry['comments'].append({
+            'title': '🎯 Recommended Next Steps',
+            'text': '\n'.join(f"• {n}" for n in feedback_sections['next_steps'])
+        })
+    
+    if existing_index is not None:
+        st.session_state.interviews_data[existing_index] = resume_entry
+    else:
+        st.session_state.interviews_data.append(resume_entry)
+
 def get_ai_response(prompt_text):
     """Get AI response with proper error handling"""
     try:
@@ -389,6 +519,9 @@ if st.session_state.uploaded_resume is None:
     if uploaded_file is not None:
         st.session_state.uploaded_resume = uploaded_file
         st.session_state.pdf_base64 = base64.b64encode(uploaded_file.read()).decode('utf-8')
+        # Generate unique ID for this resume
+        import time
+        st.session_state.current_resume_id = int(time.time())
         st.session_state.chat_messages.append({
             'type': 'system',
             'content': f'📁 Resume uploaded: {uploaded_file.name}'
@@ -439,6 +572,7 @@ else:
             st.session_state.initial_review_done = False
             st.session_state.annotated_pdf = None
             st.session_state.annotations = []
+            st.session_state.current_resume_id = None
             st.rerun()
 
     with button_col4:
@@ -586,6 +720,15 @@ Please be specific and actionable in your feedback."""
                 'type': 'ai',
                 'content': ai_response
             })
+            
+            # Save feedback to results page integration
+            if st.session_state.current_resume_id and st.session_state.uploaded_resume:
+                save_resume_feedback(
+                    st.session_state.current_resume_id,
+                    st.session_state.uploaded_resume.name,
+                    ai_response
+                )
+            
             st.session_state.processing = False
             st.rerun()
 

@@ -218,12 +218,17 @@ def save_interview_feedback(interview_id, feedback_data):
     existing_index = next((i for i, item in enumerate(st.session_state.interviews_data) 
                           if item.get('id') == interview_id), None)
     
+    company = feedback_data.get('company', 'Mock Interview')
+    position = feedback_data.get('position', 'Practice Session')
+
     interview_entry = {
         'id': interview_id,
-        'date': feedback_data['timestamp'].strftime("%Y-%m-%d"),
+        'type': 'interview',
+        'title': f"{company} Interview",
+        'date': feedback_data['timestamp'].strftime("%m/%d/%y"),
         'time': feedback_data['timestamp'].strftime("%I:%M %p"),
-        'company': feedback_data.get('company', 'Mock Interview'),
-        'position': feedback_data.get('position', 'Practice Session'),
+        'company': company,
+        'position': position,
         'score': feedback_data['overall_score'],
         'status': 'Completed',
         'comments': []
@@ -250,6 +255,13 @@ def save_interview_feedback(interview_id, feedback_data):
                 'title': f"❓ {item['question'][:50]}...",
                 'text': item['feedback']
             })
+    
+    # Add questions and answers for detailed display in results page
+    if feedback_data.get('questions') and feedback_data.get('answers'):
+        interview_entry['questions_and_answers'] = [
+            {'question': q, 'answer': a} 
+            for q, a in zip(feedback_data['questions'], feedback_data['answers'])
+        ]
     
     if existing_index is not None:
         st.session_state.interviews_data[existing_index] = interview_entry
@@ -559,6 +571,8 @@ else:
                     'strengths': strengths if strengths else ["Keep practicing!"],
                     'areas_for_improvement': improvements if improvements else ["Continue refining your responses"],
                     'detailed_feedback': detailed_feedback,
+                    'questions': st.session_state.questions,
+                    'answers': st.session_state.answers,
                     'timestamp': datetime.now(),
                     'overall_notes': overall_feedback
                 }
