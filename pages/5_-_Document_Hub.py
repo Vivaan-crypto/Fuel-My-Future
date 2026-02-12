@@ -173,7 +173,7 @@ with st.expander("Analyze Professional Trajectory", expanded=True):
             st.markdown("""
             **AI Executive Summary:**
             Your professional writing has evolved from a *descriptive* style to a *results-oriented* framework. 
-            Since January 2025, you have increased your use of quantitative metrics by **40%**, 
+            You have increased your use of quantitative metrics by **40%**, 
             demonstrating a clearer understanding of your professional impact.
             """)
 
