@@ -434,39 +434,38 @@ else:
                         st.session_state.current_question += 1
                         st.rerun()
         
-        # Right: Recording/Timer Section
+        # Right: Timer Section
         with content_right:
-            st.markdown("### 🎙️ Recording")
-            st.caption("(Placeholder - Recording functionality coming soon)")
+            st.markdown("### ⏱️ Timer")
             
             # Timer display
             if st.session_state.timer_start:
                 elapsed = int(time.time() - st.session_state.timer_start)
                 minutes = elapsed // 60
                 seconds = elapsed % 60
-                st.markdown(f"## ⏱️ {minutes:02d}:{seconds:02d}")
+                st.markdown(f"## {minutes:02d}:{seconds:02d}")
             else:
-                st.markdown("## ⏱️ 00:00")
+                st.markdown("## 00:00")
             
-            # Recording controls
+            # Timer controls
             if not st.session_state.is_recording:
-                if st.button("🔴 Start Recording", use_container_width=True):
+                if st.button("▶️ Start Timer", use_container_width=True):
                     st.session_state.is_recording = True
                     st.session_state.timer_start = time.time()
                     st.rerun()
             else:
-                if st.button("⏹️ Stop Recording", use_container_width=True):
+                if st.button("⏸️ Stop Timer", use_container_width=True):
                     st.session_state.is_recording = False
                     st.session_state.timer_start = None
                     st.rerun()
             
             st.markdown("---")
             
-            # Recording status
+            # Timer status
             if st.session_state.is_recording:
-                st.success("🔴 Recording in progress...")
+                st.success("⏱️ Timer running...")
             else:
-                st.info("⭕ Not recording")
+                st.info("⏱️ Timer stopped")
         
         st.markdown("---")
         
