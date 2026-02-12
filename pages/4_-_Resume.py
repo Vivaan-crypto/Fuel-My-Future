@@ -342,7 +342,7 @@ def save_to_my_uploads(resume_file):
     if 'all_docs' not in st.session_state:
         st.session_state.all_docs = []
 
-    new_id = max([doc['id'] for doc in st.session_state.all_docs], default=0) + 1
+    new_id = max([doc.get('id', 0) for doc in st.session_state.all_docs], default=0) + 1
 
     new_doc = {
         'id': new_id,
