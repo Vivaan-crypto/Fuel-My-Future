@@ -9,7 +9,7 @@ st.set_page_config(layout="wide", page_title="Fuel My Future", page_icon="🚀")
 try:
     genai.configure(api_key="AIzaSyDu-67jy3ONlflRt6T0Wtn9VBwa6soUYFo")
     available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
-    target_model = 'gemini-1.5-flash' 
+    target_model = 'gemini-3-flash-preview'
     if f"models/{target_model}" not in available_models and available_models:
         target_model = available_models[0].replace('models/', '')
     model = genai.GenerativeModel(target_model)
