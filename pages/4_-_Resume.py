@@ -2,7 +2,16 @@ import streamlit as st
 from datetime import datetime
 import base64
 import yaml
-from google import genai
+try:
+    from google import genai as genai
+    _GENAI_SDK = "google-genai"
+except ImportError:
+    try:
+        import google.generativeai as genai
+        _GENAI_SDK = "google-generativeai"
+    except ImportError:
+        genai = None
+        _GENAI_SDK = None
 st.set_page_config(page_title="Resume Analyzer", page_icon="📄", layout="wide")
 
 # ========================================
@@ -117,11 +126,18 @@ st.markdown("""
     }
 </style>
 """, unsafe_allow_html=True)
-with open('C:/Users/shahv/OneDrive/Documents/GitHub/Fuel-My-Future/config.yaml', 'r') as f:
+with open('config.yaml', 'r') as f:
     file = yaml.safe_load(f)
 
 API_KEY = file['API_KEY']
-client = genai.Client(api_key=API_KEY)
+client = None
+if genai is None:
+    st.error("Missing Google AI SDK. Install `google-genai` or `google-generativeai`.")
+elif hasattr(genai, "Client"):
+    client = genai.Client(api_key=API_KEY)
+else:
+    genai.configure(api_key=API_KEY)
+    client = genai.GenerativeModel("gemini-1.5-flash")
 # ========================================
 # SESSION STATE
 # ========================================
@@ -288,18 +304,23 @@ else:
                     'content': user_input
                 })
                 try:
-                    response = client.models.generate_content(
-                        model="gemini-3-flash-preview",
-                        contents = user_input,
-
-                    )
-                    ai_reply = response.text
+                    if client is None:
+                        raise RuntimeError("AI client is not configured.")
+                    if hasattr(client, "models"):
+                        response = client.models.generate_content(
+                            model="gemini-3-flash-preview",
+                            contents=user_input,
+                        )
+                        ai_reply = response.text
+                    else:
+                        response = client.generate_content(user_input)
+                        ai_reply = response.text if hasattr(response, "text") else str(response)
 
                     st.session_state.chat_messages.append({
                         'type': 'ai',
                         'content': ai_reply
                     })
-                except Exception as e:
+                except Exception:
                     ai_reply = "Sorry, there was an error processing your request."
                 # PLACEHOLDER: Gemini AI will replace this
                 st.session_state.chat_messages.append({

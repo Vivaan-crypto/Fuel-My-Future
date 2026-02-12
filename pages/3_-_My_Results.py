@@ -1,6 +1,18 @@
 import streamlit as st
 from datetime import datetime
 
+# Helper function to parse dates in multiple formats
+def parse_date(date_string):
+    """Parse date string with support for multiple formats"""
+    formats = ["%m/%d/%y", "%Y-%m-%d", "%m/%d/%Y"]
+    for fmt in formats:
+        try:
+            return datetime.strptime(date_string, fmt)
+        except ValueError:
+            continue
+    # If all formats fail, return a default date
+    return datetime(1970, 1, 1)
+
 # Function to load feedback from other pages
 def load_feedback_from_sessions():
     """
@@ -44,7 +56,7 @@ st.markdown("---")
 # Load any feedback from other pages
 load_feedback_from_sessions()
 
-# Hardcoded data, can replace if needed
+# Initialize interviews_data with hardcoded data only on first load
 if 'interviews_data' not in st.session_state:
     st.session_state.interviews_data = [
         {
@@ -122,19 +134,19 @@ if 'interviews_data' not in st.session_state:
             "comments": []
         },
     ]
+    # Mark that we have sample data
+    st.session_state.has_sample_data = True
 
 # Helper function to get color based on score
 def get_score_color(score, item_type):
-    if item_type == "interview":
-        return "#87CEEB"  # Light blue for interviews
-    elif score >= 90:
-        return "#90EE90"  # Light green
-    elif score >= 80:
-        return "#FFE66D"  # Light yellow
-    elif score >= 70:
-        return "#FFB347"  # Light orange
+    if score >= 80:
+        return "#87CEEB"  # Blue for 80+
+    elif score >= 60:
+        return "#90EE90"  # Green for 60-79
+    elif score >= 40:
+        return "#FFE66D"  # Yellow for 40-59
     else:
-        return "#FF6B6B"  # Light red
+        return "#FF6B6B"  # Red for below 40
 
 # CSS for card styling
 st.markdown("""
@@ -248,9 +260,9 @@ if search_query:
 
 # Sort data
 if sort_option == "Date (Newest)":
-    filtered_data.sort(key=lambda x: datetime.strptime(x["date"], "%m/%d/%y"), reverse=True)
+    filtered_data.sort(key=lambda x: parse_date(x["date"]), reverse=True)
 elif sort_option == "Date (Oldest)":
-    filtered_data.sort(key=lambda x: datetime.strptime(x["date"], "%m/%d/%y"))
+    filtered_data.sort(key=lambda x: parse_date(x["date"]))
 elif sort_option == "Score (High to Low)":
     filtered_data.sort(key=lambda x: x["score"], reverse=True)
 elif sort_option == "Score (Low to High)":
@@ -283,18 +295,29 @@ if st.session_state.selected_item is not None:
         st.session_state.selected_item = None
         st.rerun()
     
-    st.markdown("---")
     
     # Content area with two columns
     content_col1, content_col2 = st.columns([2, 1])
     
-    with content_col1:
-        st.markdown("### Document Preview")
-        st.info("📄 Document content would be displayed here. You can integrate a PDF viewer or display formatted content.")
-        st.markdown(f"```\n{item['content']}\n```")
+    with content_col1:        
+        # Display Questions and Answers if available (for interviews)
+        if item.get('type') == 'interview' and item.get('questions_and_answers'):
+            st.markdown("### 📝 Interview Questions & Answers")
+            for idx, qa in enumerate(item['questions_and_answers'], 1):
+                with st.expander(f"Q{idx}: {qa['question'][:50]}..."):
+                    st.markdown(f"**Question:** {qa['question']}")
+                    st.markdown("**Your Answer:**")
+                    st.info(qa['answer'])
+                    
+                    # Display feedback and score if available
+                    if 'feedback' in qa:
+                        st.markdown("**Feedback:**")
+                        st.success(qa['feedback'])
+                    if 'score' in qa:
+                        st.markdown(f"**Score:** {qa['score']}/100")
     
     with content_col2:
-        st.markdown("### Comments")
+        st.markdown("### Feedback & Notes")
         
         # Display existing comments in a styled format
         if item["comments"]:
@@ -305,7 +328,7 @@ if st.session_state.selected_item is not None:
                 st.markdown(f"<div style='margin-left: 20px; margin-bottom: 15px; color: #E0E0E0;'>{comment['text']}</div>", 
                            unsafe_allow_html=True)
         else:
-            st.info("No feedback yet. Complete a mock interview or upload a resume to see AI-generated feedback here!")
+            st.info("No feedback available yet.")
         
         st.markdown("---")
         
@@ -360,7 +383,7 @@ else:
                         st.markdown(card_html, unsafe_allow_html=True)
                         
                         # Button to select this item (hidden, triggered by card area)
-                        if st.button(f"View Details   {item['id']}", key=f"btn_{item['id']}", use_container_width=True):
+                        if st.button(f"View Details", key=f"view_btn_{item['id']}", use_container_width=True):
                             st.session_state.selected_item = item
                             st.rerun()
 
