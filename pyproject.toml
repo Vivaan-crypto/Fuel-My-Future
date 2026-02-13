@@ -1,0 +1,12 @@
+[project]
+name = "fuel-my-future"
+version = "0.1.0"
+description = "Add your description here"
+requires-python = ">=3.13"
+dependencies = [
+    "google-genai>=1.63.0",
+    "pypdf2>=3.0.1",
+    "pyyaml>=6.0.3",
+    "reportlab>=4.4.10",
+    "streamlit>=1.54.0",
+]

@@ -12,7 +12,6 @@ from PyPDF2 import PdfReader, PdfWriter
 from google import genai as genai
 
 try:
-
     _GENAI_SDK = "google-genai"
 except ImportError:
     try:
@@ -175,8 +174,8 @@ else:
 # ========================================
 # SESSION STATE
 # ========================================
-if 'chat_messages' not in st.session_state:
-    st.session_state.chat_messages = []
+if 'chat_history' not in st.session_state:
+    st.session_state.chat_history = []
 if 'uploaded_resume' not in st.session_state:
     st.session_state.uploaded_resume = None
 if 'pdf_base64' not in st.session_state:
@@ -389,7 +388,7 @@ if st.session_state.uploaded_resume is None:
     if uploaded_file is not None:
         st.session_state.uploaded_resume = uploaded_file
         st.session_state.pdf_base64 = base64.b64encode(uploaded_file.read()).decode('utf-8')
-        st.session_state.chat_messages.append({
+        st.session_state.chat_history.append({
             'type': 'system',
             'content': f'📁 Resume uploaded: {uploaded_file.name}'
         })
@@ -400,40 +399,21 @@ if st.session_state.uploaded_resume is None:
 # ========================================
 else:
     # Action buttons
-    button_col1, button_col2, button_col3, button_col4 = st.columns([2, 2, 2, 2])
+    button_col1, button_col3, button_col4 = st.columns([2, 2, 2])
 
     with button_col1:
         if st.button("💾 Save to Document Hub", use_container_width=True):
             if save_to_my_uploads(st.session_state.uploaded_resume):
                 st.success("✅ Resume saved to My Uploads!")
-                st.session_state.chat_messages.append({
+                st.session_state.chat_history.append({
                     'type': 'system',
                     'content': '💾 Resume saved successfully'
                 })
 
-    with button_col2:
-        if st.button("📝 Add AI Comments to PDF", use_container_width=True):
-            with st.spinner("Generating annotated PDF..."):
-                # Generate annotations from AI
-                st.session_state.annotations = generate_annotations_from_ai()
-
-                # Create annotated PDF
-                original_pdf_bytes = base64.b64decode(st.session_state.pdf_base64)
-                annotated_pdf = create_annotated_pdf(original_pdf_bytes, st.session_state.annotations)
-
-                if annotated_pdf:
-                    st.session_state.annotated_pdf = base64.b64encode(annotated_pdf).decode('utf-8')
-                    st.success("✅ PDF annotated with AI comments!")
-                    st.session_state.chat_messages.append({
-                        'type': 'system',
-                        'content': '📝 AI comments added to PDF'
-                    })
-                    st.rerun()
-
     with button_col3:
         if st.button("🔄 Upload New Resume", use_container_width=True):
             st.session_state.uploaded_resume = None
-            st.session_state.chat_messages = []
+            st.session_state.chat_history = []
             st.session_state.pdf_base64 = None
             st.session_state.uploaded_file_ref = None
             st.session_state.initial_review_done = False
@@ -443,7 +423,7 @@ else:
 
     with button_col4:
         if st.button("🗑️ Clear Chat", use_container_width=True):
-            st.session_state.chat_messages = []
+            st.session_state.chat_history = []
             st.session_state.initial_review_done = False
             st.rerun()
 
@@ -506,7 +486,7 @@ else:
                             pass
 
                         st.success("✅ PDF uploaded to Gemini AI")
-                        st.session_state.chat_messages.append({
+                        st.session_state.chat_history.append({
                             'type': 'system',
                             'content': '✅ PDF ready for AI analysis'
                         })
@@ -516,7 +496,7 @@ else:
 
                     except Exception as e:
                         st.error(f"Upload error: {str(e)}")
-                        st.session_state.chat_messages.append({
+                        st.session_state.chat_history.append({
                             'type': 'system',
                             'content': f'❌ Upload failed: {str(e)}'
                         })
@@ -537,7 +517,7 @@ else:
         with chat_container:
             st.markdown("<div class='chat-messages'>", unsafe_allow_html=True)
 
-            for message in st.session_state.chat_messages:
+            for message in st.session_state.chat_history:
                 if message['type'] == 'user':
                     st.markdown(f"<div class='user-message'>👤 {message['content']}</div>", unsafe_allow_html=True)
                 elif message['type'] == 'ai':
@@ -561,7 +541,7 @@ else:
             st.session_state.processing = True
 
             # Add system message
-            st.session_state.chat_messages.append({
+            st.session_state.chat_history.append({
                 'type': 'system',
                 'content': '🔍 Generating initial resume analysis...'
             })
@@ -569,7 +549,7 @@ else:
 
         # Process initial review
         if st.session_state.processing and st.session_state.initial_review_done and len(
-                [m for m in st.session_state.chat_messages if m['type'] == 'ai']) == 0:
+                [m for m in st.session_state.chat_history if m['type'] == 'ai']) == 0:
             initial_prompt = """Please provide a comprehensive review of this resume including:
 
 1. Overall impression and score (1-10)
@@ -582,10 +562,11 @@ Please be specific and actionable in your feedback."""
 
             ai_response = get_ai_response(initial_prompt)
 
-            st.session_state.chat_messages.append({
+            st.session_state.chat_history.append({
                 'type': 'ai',
                 'content': ai_response
             })
+
             st.session_state.processing = False
             st.rerun()
 
@@ -599,7 +580,7 @@ Please be specific and actionable in your feedback."""
 
         if st.button("Send", use_container_width=True) and user_input:
             # Add user message immediately
-            st.session_state.chat_messages.append({
+            st.session_state.chat_history.append({
                 'type': 'user',
                 'content': user_input
             })
@@ -609,18 +590,18 @@ Please be specific and actionable in your feedback."""
             st.rerun()
 
         # Process user query if we're in processing state
-        if st.session_state.processing and st.session_state.chat_messages[-1]['type'] == 'user':
-            last_user_message = st.session_state.chat_messages[-1]['content']
+        if st.session_state.processing and st.session_state.chat_history[-1]['type'] == 'user':
+            last_user_message = st.session_state.chat_history[-1]['content']
 
             if st.session_state.uploaded_file_ref:
                 ai_response = get_ai_response(last_user_message)
 
-                st.session_state.chat_messages.append({
+                st.session_state.chat_history.append({
                     'type': 'ai',
                     'content': ai_response
                 })
             else:
-                st.session_state.chat_messages.append({
+                st.session_state.chat_history.append({
                     'type': 'ai',
                     'content': '❌ Please wait for the PDF to finish uploading to Gemini AI.'
                 })
@@ -635,7 +616,7 @@ Please be specific and actionable in your feedback."""
 
         with quick_col1:
             if st.button("💪 Strengths", use_container_width=True):
-                st.session_state.chat_messages.append({
+                st.session_state.chat_history.append({
                     'type': 'user',
                     'content': 'What are the key strengths in my resume?'
                 })
@@ -643,7 +624,7 @@ Please be specific and actionable in your feedback."""
                 st.rerun()
 
             if st.button("📈 Improvements", use_container_width=True):
-                st.session_state.chat_messages.append({
+                st.session_state.chat_history.append({
                     'type': 'user',
                     'content': 'How can I improve my resume?'
                 })
@@ -652,7 +633,7 @@ Please be specific and actionable in your feedback."""
 
         with quick_col2:
             if st.button("🎯 ATS Tips", use_container_width=True):
-                st.session_state.chat_messages.append({
+                st.session_state.chat_history.append({
                     'type': 'user',
                     'content': 'What are your ATS optimization tips?'
                 })
@@ -660,7 +641,7 @@ Please be specific and actionable in your feedback."""
                 st.rerun()
 
             if st.button("📊 Score", use_container_width=True):
-                st.session_state.chat_messages.append({
+                st.session_state.chat_history.append({
                     'type': 'user',
                     'content': 'What is my resume score?'
                 })
