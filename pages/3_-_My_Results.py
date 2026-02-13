@@ -1,5 +1,6 @@
 import streamlit as st
 from datetime import datetime
+import re
 
 # Helper function to parse dates in multiple formats
 def parse_date(date_string):
@@ -13,12 +14,40 @@ def parse_date(date_string):
     # If all formats fail, return a default date
     return datetime(1970, 1, 1)
 
+
+def format_comment_markdown(text):
+    """Format AI feedback into clean markdown lists."""
+    if not text:
+        return ""
+
+    raw_lines = [line.strip() for line in text.splitlines() if line.strip()]
+    items = []
+
+    for line in raw_lines:
+        if "•" in line:
+            parts = [part.strip() for part in line.split("•") if part.strip()]
+            items.extend(parts)
+        else:
+            items.append(line)
+
+    cleaned = []
+    for item in items:
+        cleaned_item = re.sub(r"^(?:[-*]|\d+\.|\d+\)|Step\s*\d+:)\s*", "", item, flags=re.IGNORECASE)
+        cleaned.append(cleaned_item)
+
+    if len(cleaned) > 1:
+        return "\n".join([f"- {item}" for item in cleaned if item])
+
+    return cleaned[0] if cleaned else ""
+
 # Function to load feedback from other pages
 def load_feedback_from_sessions():
     """
     Load feedback from mock_interview and resume pages into interviews_data
     This ensures comments are synced from other pages
     """
+    if 'interviews_data' not in st.session_state:
+        return
     # Mock interview feedback
     if 'interview_feedback' in st.session_state:
         for interview_id, feedback_data in st.session_state.interview_feedback.items():
@@ -55,86 +84,9 @@ st.markdown("---")
 # Load any feedback from other pages
 load_feedback_from_sessions()
 
-# Initialize interviews_data with hardcoded data only on first load
+# Initialize interviews_data as empty on first load
 if 'interviews_data' not in st.session_state:
-    st.session_state.interviews_data = [
-        {
-            "id": 1,
-            "title": "Chick Fil A Resume",
-            "type": "resume",
-            "date": "02/01/26",
-            "score": 92,
-            "content": "Resume content here...",
-            "comments": [
-                {
-                    "title": "📊 Score Breakdown",
-                    "text": "• Overall: 92%\n• Formatting: 95%\n• Content: 88%\n• ATS Compatibility: 93%"
-                },
-                {
-                    "title": "✅ Strengths",
-                    "text": "• Clean, professional formatting\n• Strong action verbs used throughout\n• Quantifiable achievements included\n• Good keyword optimization for ATS"
-                },
-                {
-                    "title": "⚠️ Moderate Issues",
-                    "text": "• Skills section could be more prominent"
-                },
-                {
-                    "title": "💡 Minor Improvements",
-                    "text": "• Consider adding a summary statement\n• Some dates formatting inconsistent"
-                },
-                {
-                    "title": "🎯 Recommendations",
-                    "text": "• Add more industry-specific keywords\n• Consider reorganizing experience by relevance\n• Include LinkedIn profile link\n• Use consistent bullet point format"
-                }
-            ]
-        },
-        {
-            "id": 2,
-            "title": "Home Depot Interview",
-            "type": "interview",
-            "date": "01/28/26",
-            "score": 78,
-            "content": "Interview notes here...",
-            "comments": [
-                {
-                    "title": "✅ Strengths",
-                    "text": "• Clear and confident communication\n• Good use of STAR method in responses\n• Demonstrated relevant experience"
-                },
-                {
-                    "title": "🎯 Areas for Improvement",
-                    "text": "• Could provide more specific examples\n• Work on reducing filler words\n• Maintain better eye contact"
-                },
-                {
-                    "title": "❓ Tell me about yourself",
-                    "text": "Good structure, but could be more concise. Try to keep it under 2 minutes."
-                },
-                {
-                    "title": "❓ Why do you want to work here?",
-                    "text": "Excellent connection between your values and company mission."
-                }
-            ]
-        },
-        {
-            "id": 3,
-            "title": "Chick Fil A Interview",
-            "type": "interview",
-            "date": "01/17/26",
-            "score": 73,
-            "content": "Interview notes here...",
-            "comments": []
-        },
-        {
-            "id": 4,
-            "title": "Kroger Interview",
-            "type": "interview",
-            "date": "12/23/25",
-            "score": 84,
-            "content": "Interview notes here...",
-            "comments": []
-        },
-    ]
-    # Mark that we have sample data
-    st.session_state.has_sample_data = True
+    st.session_state.interviews_data = []
 
 # Helper function to get color based on score
 def get_score_color(score, item_type):
@@ -293,32 +245,14 @@ if st.session_state.selected_item is not None:
     with header_col3:
         st.markdown("### 💬")
     
-    if st.button("← Back to List"):
-        st.session_state.selected_item = None
-        st.rerun()
-    
-    
-    # Content area with two columns
-    content_col1, content_col2 = st.columns([2, 1])
-    
-    with content_col1:        
-        # Display Questions and Answers if available (for interviews)
-        if item.get('type') == 'interview' and item.get('questions_and_answers'):
-            st.markdown("### 📝 Interview Questions & Answers")
-            for idx, qa in enumerate(item['questions_and_answers'], 1):
-                with st.expander(f"Q{idx}: {qa['question'][:50]}..."):
-                    st.markdown(f"**Question:** {qa['question']}")
-                    st.markdown("**Your Answer:**")
-                    st.info(qa['answer'])
-                    
-                    # Display feedback and score if available
-                    if 'feedback' in qa:
-                        st.markdown("**Feedback:**")
-                        st.success(qa['feedback'])
-                    if 'score' in qa:
-                        st.markdown(f"**Score:** {qa['score']}/100")
-    
-    with content_col2:
+    # Content area with two columns (Feedback on the left under Back to List)
+    sidebar_col, content_col = st.columns([1, 2])
+
+    with sidebar_col:
+        if st.button("← Back to List"):
+            st.session_state.selected_item = None
+            st.rerun()
+
         st.markdown("### Feedback & Notes")
         
         # Display existing comments in a styled format
@@ -326,9 +260,9 @@ if st.session_state.selected_item is not None:
             for comment in item["comments"]:
                 # Display comment title as a bullet point
                 st.markdown(f"**• {comment['title']}**")
-                # Display comment text with proper styling
-                st.markdown(f"<div style='margin-left: 20px; margin-bottom: 15px; color: #E0E0E0;'>{comment['text']}</div>", 
-                           unsafe_allow_html=True)
+                formatted_text = format_comment_markdown(comment.get("text", ""))
+                if formatted_text:
+                    st.markdown(formatted_text)
         else:
             st.info("No feedback available yet.")
         
@@ -351,6 +285,23 @@ if st.session_state.selected_item is not None:
                     st.success("Note added!")
                     st.rerun()
 
+    with content_col:
+        # Display Questions and Answers if available (for interviews)
+        if item.get('type') == 'interview' and item.get('questions_and_answers'):
+            st.markdown("### 📝 Interview Questions & Answers")
+            for idx, qa in enumerate(item['questions_and_answers'], 1):
+                with st.expander(f"Q{idx}: {qa['question'][:50]}..."):
+                    st.markdown(f"**Question:** {qa['question']}")
+                    st.markdown("**Your Answer:**")
+                    st.info(qa['answer'])
+                    
+                    # Display feedback and score if available
+                    if 'feedback' in qa:
+                        st.markdown("**Feedback:**")
+                        st.success(qa['feedback'])
+                    if 'score' in qa:
+                        st.markdown(f"**Score:** {qa['score']}/100")
+    
 else:
     # Display grid of cards
     if len(filtered_data) == 0:

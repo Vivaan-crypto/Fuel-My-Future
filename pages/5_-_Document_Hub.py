@@ -6,38 +6,9 @@ st.set_page_config(page_title="Document Hub", page_icon="📂", layout="wide")
 
 # 2. SESSION STATE INITIALIZATION
 if 'all_docs' not in st.session_state:
-    st.session_state.all_docs = [
-        {"title": "Tech Internship 2025", "date": "2025-06-12", "type": "Resume",
-         "tldr": "Focuses on Java projects and hackathon wins."},
-        {"title": "Robotics Club Lead Resume", "date": "2025-08-20", "type": "Resume",
-         "tldr": "Highlights leadership and hardware troubleshooting."},
-        {"title": "Summer Camp Counselor", "date": "2025-05-01", "type": "Resume",
-         "tldr": "Emphasizes soft skills and communication."},
-        {"title": "LinkedIn Headline Refresh", "date": "2025-01-15", "type": "LinkedIn Profile",
-         "tldr": "Updated for 10th grade transition."},
-        {"title": "Networking Summary v2", "date": "2025-03-10", "type": "LinkedIn Profile",
-         "tldr": "Professional branding for tech mentors."},
-        {"title": "Personal Brand Bio", "date": "2025-11-05", "type": "LinkedIn Profile",
-         "tldr": "Focuses on future goals in AI Engineering."},
-        {"title": "Google STEP Description", "date": "2025-03-20", "type": "Job Description",
-         "tldr": "Detailed breakdown of freshman internship requirements."},
-        {"title": "Meta Front-End Role", "date": "2025-04-15", "type": "Job Description",
-         "tldr": "Breakdown of UI/UX design expectations."},
-        {"title": "SpaceX Engineer Specs", "date": "2025-09-12", "type": "Job Description",
-         "tldr": "Research on aerospace software standards."},
-        {"title": "Youth Leadership Bio", "date": "2025-02-10", "type": "Professional Bio",
-         "tldr": "Highlights community service roles."},
-        {"title": "Speaker Intro - STEM", "date": "2025-10-30", "type": "Professional Bio",
-         "tldr": "Short intro for public speaking."},
-        {"title": "Hackathon Team Bio", "date": "2026-01-12", "type": "Professional Bio",
-         "tldr": "Concise bio for project submissions."},
-        {"title": "NHS Application Essay", "date": "2025-08-05", "type": "Other",
-         "tldr": "Writing sample for Honor Society."},
-        {"title": "Scholarship Cover Letter", "date": "2025-12-15", "type": "Other",
-         "tldr": "Draft for STEM excellence grant."},
-        {"title": "Volunteer Work Log", "date": "2026-01-20", "type": "Other",
-         "tldr": "Tracking of hours and project impact."}
-    ]
+    st.session_state.all_docs = []
+if 'other_docs' not in st.session_state:
+    st.session_state.other_docs = []
 
 # 3. STYLING
 st.markdown("""
@@ -101,9 +72,9 @@ with tab1:
 
     # LOGIC
     if type_filter == "All Documents":
-        filtered = st.session_state.all_docs
+        filtered = [d for d in st.session_state.all_docs if d.get("type") == "Resume"]
     else:
-        filtered = [d for d in st.session_state.all_docs if d["type"] == type_filter]
+        filtered = [d for d in st.session_state.all_docs if d.get("type") == type_filter]
 
     if sort_option == "Alphabetical (A-Z)":
         filtered = sorted(filtered, key=lambda x: x["title"])
@@ -230,7 +201,7 @@ with tab2:
         # Document name input
         doc_name = st.text_input("Document Name:", value=uploaded_file.name.replace('.pdf', ''))
         
-        # Category dropdown
+        # Category dropdown (non-resume docs only)
         doc_category = st.selectbox(
             "Category:",
             ["Elevator Pitch", "LinkedIn Profile", "Job Description", "Professional Bio", "Other"]
@@ -245,7 +216,7 @@ with tab2:
             try:
                 datetime.strptime(doc_date, "%Y-%m-%d")
                 
-                # Create new document entry
+                # Create new other document entry
                 new_doc = {
                     "title": doc_name,
                     "date": doc_date,
@@ -254,7 +225,7 @@ with tab2:
                 }
                 
                 # Add to session state
-                st.session_state.all_docs.append(new_doc)
+                st.session_state.other_docs.append(new_doc)
                 
                 st.success("✅ Document saved successfully!")
                 st.balloons()
@@ -280,13 +251,8 @@ with tab2:
         "Other": {"icon": "📁", "color": "#475569", "text": "white"}
     }
     
-    # Display all documents in grid layout
-    #all_docs_sorted = sorted(st.session_state.all_docs, key=lambda x: x["date"], reverse=True)
-    # Filter out Resumes so they don't show up in the "Other" tab
-    others_only = [d for d in st.session_state.all_docs if d["type"] != "Resume"]
-
-    # Sort the filtered list
-    all_docs_sorted = sorted(others_only, key=lambda x: x["date"], reverse=True)
+    # Display all other documents in grid layout
+    all_docs_sorted = sorted(st.session_state.other_docs, key=lambda x: x["date"], reverse=True)
     rows = [all_docs_sorted[i:i + 3] for i in range(0, len(all_docs_sorted), 3)]
 
     for row_idx, row in enumerate(rows):

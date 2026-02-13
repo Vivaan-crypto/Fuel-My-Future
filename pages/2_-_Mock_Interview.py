@@ -4,6 +4,24 @@ import time
 
 st.set_page_config(page_title="Mock Interview", page_icon="📝", layout="wide")
 
+st.markdown(
+    """
+    <style>
+    @media (prefers-color-scheme: light) {
+        h1, h2, h3, .stMarkdown h1, .stMarkdown h2, .stMarkdown h3 {
+            color: #1F2937;
+        }
+    }
+    @media (prefers-color-scheme: dark) {
+        h1, h2, h3, .stMarkdown h1, .stMarkdown h2, .stMarkdown h3 {
+            color: #E5E7EB;
+        }
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
 # Top bar with logo and title
 col1, col2 = st.columns([1, 4])
 
@@ -46,6 +64,12 @@ if 'current_interview_id' not in st.session_state:
 
 if 'interviews_data' not in st.session_state:
     st.session_state.interviews_data = []
+
+if 'interview_name' not in st.session_state:
+    st.session_state.interview_name = ""
+
+if 'interview_description' not in st.session_state:
+    st.session_state.interview_description = ""
 
 # Function to analyze answer quality
 def analyze_answer_quality(answer, question):
@@ -224,6 +248,8 @@ def save_interview_feedback(interview_id, feedback_data):
         'time': feedback_data['timestamp'].strftime("%I:%M %p"),
         'company': feedback_data.get('company', 'Mock Interview'),
         'position': feedback_data.get('position', 'Practice Session'),
+        'title': feedback_data.get('title', 'Mock Interview'),
+        'type': 'interview',
         'score': feedback_data['overall_score'],
         'status': 'Completed',
         'comments': []
@@ -349,153 +375,119 @@ if st.session_state.interview_completed:
 
 else:
     # Normal Interview Flow
-    # Main Layout: Sidebar + Main Content
-    sidebar_col, main_col = st.columns([1, 3])
-    
-    # ========================================
-    # LEFT SIDEBAR - Questions & Feedback
-    # ========================================
-    with sidebar_col:
-        st.subheader("📋 Questions")
-        
-        # Display all questions with navigation
-        for i, q in enumerate(st.session_state.questions):
-            if st.button(f"Q{i+1}", key=f"nav_q{i}", use_container_width=True):
-                st.session_state.current_question = i
-            
-            # Show checkmark if answered
-            if st.session_state.answers[i]:
-                st.caption(f"✅ Answered")
-            else:
-                st.caption(f"❌ Not answered")
-        
-        st.markdown("---")
-        
-        # Feedback section in sidebar
-        st.subheader("💭 Feedback")
-        feedback_text = st.text_area(
-            "Notes/Comments",
-            placeholder="Add your notes here...",
-            height=200,
-            key="sidebar_feedback"
-        )
-    
     # ========================================
     # MAIN CONTENT AREA
     # ========================================
-    with main_col:
-        # Top section with Q1, Q2, Q3 boxes
+    st.subheader("Interview Setup")
+    setup_col1, setup_col2 = st.columns([1, 2])
+
+    with setup_col1:
+        st.session_state.interview_name = st.text_input(
+            "Interview or Resume Name",
+            value=st.session_state.interview_name,
+            placeholder="e.g., Chick Fil A Interview"
+        )
+
+    with setup_col2:
+        st.session_state.interview_description = st.text_area(
+            "What are you interviewing for?",
+            value=st.session_state.interview_description,
+            placeholder="Role, company, or any details you want to remember",
+            height=68
+        )
+
+    st.markdown("---")
+
+    main_left, main_right = st.columns([3, 1])
+
+    with main_left:
         st.subheader("Interview Questions")
-        q_cols = st.columns(3)
-        
-        for i, col in enumerate(q_cols):
-            with col:
-                status = "✅" if st.session_state.answers[i] else "⭕"
-                if st.button(f"{status} Q{i+1}", key=f"top_q{i}", use_container_width=True):
-                    st.session_state.current_question = i
-        
-        st.markdown("---")
-        
-        # Main content: Current Question + Recording Section
-        content_left, content_right = st.columns([2, 1])
-        
-        # Left: Current Question
-        with content_left:
-            current_q = st.session_state.current_question
-            
-            st.markdown(f"### Question {current_q + 1} of {len(st.session_state.questions)}")
-            st.info(st.session_state.questions[current_q])
-            
-            # Answer input
-            answer = st.text_area(
-                "Your Answer:",
-                value=st.session_state.answers[current_q],
-                height=200,
-                key=f"answer_input_{current_q}"
-            )
-            
-            # Save answer
-            if st.button("💾 Save Answer", use_container_width=True):
-                st.session_state.answers[current_q] = answer
-                st.success("Answer saved!")
-            
-            # Navigation buttons
-            nav_col1, nav_col2 = st.columns(2)
-            with nav_col1:
-                if current_q > 0:
-                    if st.button("⬅️ Previous", use_container_width=True):
-                        st.session_state.current_question -= 1
-                        st.rerun()
-            
-            with nav_col2:
-                if current_q < len(st.session_state.questions) - 1:
-                    if st.button("Next ➡️", use_container_width=True):
-                        st.session_state.answers[current_q] = answer
-                        st.session_state.current_question += 1
-                        st.rerun()
-        
-        # Right: Timer Section
-        with content_right:
-            st.markdown("### ⏱️ Timer")
-            
-            # Timer display
-            if st.session_state.timer_start:
-                elapsed = int(time.time() - st.session_state.timer_start)
-                minutes = elapsed // 60
-                seconds = elapsed % 60
-                st.markdown(f"## {minutes:02d}:{seconds:02d}")
-            else:
-                st.markdown("## 00:00")
-            
-            # Timer controls
-            if not st.session_state.is_recording:
-                if st.button("▶️ Start Timer", use_container_width=True):
-                    st.session_state.is_recording = True
-                    st.session_state.timer_start = time.time()
-                    st.rerun()
-            else:
-                if st.button("⏸️ Stop Timer", use_container_width=True):
-                    st.session_state.is_recording = False
-                    st.session_state.timer_start = None
-                    st.rerun()
-            
-            st.markdown("---")
-            
-            # Timer status
-            if st.session_state.is_recording:
-                st.success("⏱️ Timer running...")
-                # Auto-refresh every second to update timer
-                time.sleep(1)
+
+        for i, question in enumerate(st.session_state.questions):
+            status = "✅" if st.session_state.answers[i].strip() else "⭕"
+            with st.expander(f"{status} Question {i + 1}: {question}"):
+                st.markdown(f"**Question:** {question}")
+                answer_key = f"answer_input_{i}"
+                answer_value = st.text_area(
+                    "Your Answer",
+                    value=st.session_state.answers[i],
+                    height=160,
+                    key=answer_key
+                )
+                if st.button("💾 Save Answer", key=f"save_answer_{i}", use_container_width=True):
+                    st.session_state.answers[i] = answer_value
+                    st.success("Answer saved!")
+
+    with main_right:
+        st.markdown("### ⏱️ Timer")
+
+        if st.session_state.timer_start:
+            elapsed = int(time.time() - st.session_state.timer_start)
+            minutes = elapsed // 60
+            seconds = elapsed % 60
+            st.markdown(f"## {minutes:02d}:{seconds:02d}")
+        else:
+            st.markdown("## 00:00")
+
+        if not st.session_state.is_recording:
+            if st.button("▶️ Start Timer", use_container_width=True):
+                st.session_state.is_recording = True
+                st.session_state.timer_start = time.time()
                 st.rerun()
-            else:
-                st.info("⏱️ Timer stopped")
-        
+        else:
+            if st.button("⏸️ Stop Timer", use_container_width=True):
+                st.session_state.is_recording = False
+                st.session_state.timer_start = None
+                st.rerun()
+
         st.markdown("---")
-        
-        # Bottom: Submit Feedback Section
-        st.markdown("### 📤 Submit Feedback")
-        
-        submit_col1, submit_col2, submit_col3 = st.columns([2, 1, 1])
-        
-        with submit_col1:
-            overall_feedback = st.text_area(
-                "Overall Feedback",
-                placeholder="How did you do overall?",
-                height=100
-            )
-        
-        with submit_col2:
-            confidence_score = st.slider(
-                "Confidence Level",
-                min_value=0,
-                max_value=100,
-                value=50
-            )
-        
-        with submit_col3:
-            st.write("")  # Spacing
-            st.write("")  # Spacing
-            if st.button("🚀 Submit Interview", use_container_width=True, type="primary"):
+
+        if st.session_state.is_recording:
+            st.success("⏱️ Timer running...")
+            time.sleep(1)
+            st.rerun()
+        else:
+            st.info("⏱️ Timer stopped")
+
+        st.markdown("---")
+
+        st.text_area(
+            "Notes/Comments",
+            placeholder="Add your notes here...",
+            height=160,
+            key="main_feedback"
+        )
+
+    st.markdown("---")
+
+    st.markdown("### 📤 Submit Feedback")
+
+    submit_col1, submit_col2, submit_col3 = st.columns([2, 1, 1])
+
+    with submit_col1:
+        overall_feedback = st.text_area(
+            "Overall Feedback",
+            placeholder="How did you do overall?",
+            height=100
+        )
+
+    with submit_col2:
+        confidence_score = st.slider(
+            "Confidence Level",
+            min_value=0,
+            max_value=100,
+            value=50
+        )
+
+    with submit_col3:
+        st.write("")
+        st.write("")
+        if st.button("🚀 Submit Interview", use_container_width=True, type="primary"):
+            for i in range(len(st.session_state.questions)):
+                answer_key = f"answer_input_{i}"
+                if answer_key in st.session_state:
+                    st.session_state.answers[i] = st.session_state[answer_key]
+
                 # Calculate scores with detailed analysis
                 overall_score, question_scores, analyses = calculate_interview_score(
                     st.session_state.answers, 
@@ -554,11 +546,14 @@ else:
                     })
                 
                 # Create feedback data
+                interview_title = st.session_state.interview_name.strip() or "Mock Interview"
+                interview_description = st.session_state.interview_description.strip() or "General Interview"
                 feedback_data = {
                     'overall_score': overall_score,
                     'confidence_level': confidence_score,
-                    'company': 'Mock Interview Practice',
-                    'position': 'General Interview',
+                    'company': interview_title,
+                    'position': interview_description,
+                    'title': interview_title,
                     'strengths': strengths if strengths else ["Keep practicing!"],
                     'areas_for_improvement': improvements if improvements else ["Continue refining your responses"],
                     'detailed_feedback': detailed_feedback,

@@ -491,8 +491,11 @@ with right_col:
             """, unsafe_allow_html=True)
 
         for msg in st.session_state.chat_history:
-            with st.chat_message(msg["role"]):
-                st.markdown(msg["content"])
+            role = msg.get("role", "assistant")
+            content = msg.get("content", "")
+            with st.chat_message(role):
+                if content:
+                    st.markdown(content)
 
     # Chat input
     if prompt := st.chat_input("Ask me anything...", key="ai_chat_input"):

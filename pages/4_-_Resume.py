@@ -190,6 +190,8 @@ if 'annotated_pdf' not in st.session_state:
     st.session_state.annotated_pdf = None
 if 'annotations' not in st.session_state:
     st.session_state.annotations = []
+if 'resume_name' not in st.session_state:
+    st.session_state.resume_name = ''
 
 
 # ========================================
@@ -341,17 +343,150 @@ def save_to_my_uploads(resume_file):
     if 'all_docs' not in st.session_state:
         st.session_state.all_docs = []
 
-    new_id = max([doc['id'] for doc in st.session_state.all_docs], default=0) + 1
+    existing_ids = [doc.get('id') for doc in st.session_state.all_docs if isinstance(doc.get('id'), int)]
+    new_id = max(existing_ids, default=0) + 1
+
+    feedback_summary = None
+    for message in reversed(st.session_state.chat_history):
+        if message.get('type') == 'ai' and message.get('content'):
+            feedback_summary = message['content'].strip().replace('\n', ' ')
+            break
+
+    if feedback_summary:
+        if len(feedback_summary) > 140:
+            feedback_summary = f"{feedback_summary[:137]}..."
+        tldr_text = f"AI feedback: {feedback_summary}"
+    else:
+        tldr_text = f"AI analyzed resume - uploaded {datetime.now().strftime('%m/%d/%Y')}"
 
     new_doc = {
         'id': new_id,
         'title': resume_file.name.replace('.pdf', ''),
         'date': datetime.now().strftime('%Y-%m-%d'),
         'type': 'Resume',
-        'tldr': f"AI analyzed resume - uploaded {datetime.now().strftime('%m/%d/%Y')}"
+        'tldr': tldr_text
     }
 
     st.session_state.all_docs.append(new_doc)
+    return True
+
+
+def save_to_results():
+    """Save resume analysis to My Results with comments"""
+    # Check if there's AI feedback
+    ai_messages = [m for m in st.session_state.chat_history if m.get('type') == 'ai']
+    if not ai_messages:
+        return False
+    
+    # Initialize interviews_data if not exists
+    if 'interviews_data' not in st.session_state:
+        st.session_state.interviews_data = []
+    
+    # Get existing IDs to generate new one
+    existing_ids = [item.get('id') for item in st.session_state.interviews_data if isinstance(item.get('id'), int)]
+    new_id = max(existing_ids, default=0) + 1
+    
+    # Extract AI feedback as comments
+    comments = []
+    
+    # Get the first AI message (initial review)
+    if ai_messages:
+        initial_feedback = ai_messages[0].get('content', '')
+        
+        # Try to parse the feedback into sections
+        sections = {
+            "score": None,
+            "strengths": [],
+            "improvements": [],
+            "ats_tips": [],
+            "recommendations": []
+        }
+        
+        # Look for score in the feedback
+        import re
+        score_match = re.search(r'(?:score|rating)[\s:]*(\d+(?:\.\d+)?)[/\s]?(?:10|out of 10)?', initial_feedback, re.IGNORECASE)
+        if score_match:
+            sections["score"] = int(float(score_match.group(1)) * 10)  # Convert to percentage
+        else:
+            sections["score"] = 85  # Default score
+        
+        # Split feedback into lines for processing
+        lines = initial_feedback.split('\n')
+        current_section = None
+        
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+            
+            lower_line = line.lower()
+            if 'strength' in lower_line or 'strong' in lower_line:
+                current_section = 'strengths'
+            elif 'improvement' in lower_line or 'improve' in lower_line or 'weakness' in lower_line:
+                current_section = 'improvements'
+            elif 'ats' in lower_line or 'keyword' in lower_line:
+                current_section = 'ats_tips'
+            elif 'recommend' in lower_line or 'next step' in lower_line or 'suggestion' in lower_line:
+                current_section = 'recommendations'
+            elif line.startswith(('•', '-', '*', '1.', '2.', '3.', '4.', '5.')) and current_section:
+                # Clean bullet point
+                clean_line = re.sub(r'^[•\-*\d.]+\s*', '', line)
+                if current_section and clean_line:
+                    sections[current_section].append(clean_line)
+        
+        # Build comments from sections
+        if sections["score"]:
+            comments.append({
+                "title": "📊 Overall Score",
+                "text": f"Score: {sections['score']}%"
+            })
+        
+        if sections["strengths"]:
+            comments.append({
+                "title": "✅ Strengths",
+                "text": '\n'.join([f"• {s}" for s in sections["strengths"][:5]])
+            })
+        
+        if sections["improvements"]:
+            comments.append({
+                "title": "⚠️ Areas for Improvement",
+                "text": '\n'.join([f"• {i}" for i in sections["improvements"][:5]])
+            })
+        
+        if sections["ats_tips"]:
+            comments.append({
+                "title": "🎯 ATS Optimization",
+                "text": '\n'.join([f"• {a}" for a in sections["ats_tips"][:5]])
+            })
+        
+        if sections["recommendations"]:
+            comments.append({
+                "title": "💡 Recommendations",
+                "text": '\n'.join([f"• {r}" for r in sections["recommendations"][:5]])
+            })
+        
+        # If we couldn't parse sections, just save the full feedback
+        if len(comments) <= 1:
+            comments = [{
+                "title": "📝 AI Feedback",
+                "text": initial_feedback[:500]  # Limit length
+            }]
+    
+    # Get resume name or use default
+    resume_title = st.session_state.resume_name if st.session_state.resume_name else st.session_state.uploaded_resume.name.replace('.pdf', '')
+    
+    # Create new result entry
+    new_result = {
+        "id": new_id,
+        "title": resume_title,
+        "type": "resume",
+        "date": datetime.now().strftime('%m/%d/%y'),
+        "score": sections.get("score", 85),
+        "content": "",
+        "comments": comments
+    }
+    
+    st.session_state.interviews_data.append(new_result)
     return True
 
 
@@ -398,8 +533,23 @@ if st.session_state.uploaded_resume is None:
 # ANALYSIS INTERFACE
 # ========================================
 else:
+    # Resume Name Input
+    st.markdown("### 📝 Name Your Resume")
+    resume_name_input = st.text_input(
+        "Give your resume a memorable name (e.g., 'Software Engineer - Google', 'Marketing Manager')",
+        value=st.session_state.resume_name if st.session_state.resume_name else st.session_state.uploaded_resume.name.replace('.pdf', ''),
+        key="resume_name_input",
+        placeholder="Enter a name for this resume..."
+    )
+    
+    # Update session state when name changes
+    if resume_name_input != st.session_state.resume_name:
+        st.session_state.resume_name = resume_name_input
+    
+    st.markdown("---")
+    
     # Action buttons
-    button_col1, button_col3, button_col4 = st.columns([2, 2, 2])
+    button_col1, button_col2, button_col3, button_col4 = st.columns([2, 2, 2, 2])
 
     with button_col1:
         if st.button("💾 Save to Document Hub", use_container_width=True):
@@ -410,6 +560,17 @@ else:
                     'content': '💾 Resume saved successfully'
                 })
 
+    with button_col2:
+        if st.button("📊 Save to Results", use_container_width=True):
+            if save_to_results():
+                st.success("✅ Resume analysis saved to My Results!")
+                st.session_state.chat_history.append({
+                    'type': 'system',
+                    'content': '📊 Analysis saved to Results tab'
+                })
+            else:
+                st.error("❌ Please wait for AI analysis to complete before saving")
+
     with button_col3:
         if st.button("🔄 Upload New Resume", use_container_width=True):
             st.session_state.uploaded_resume = None
@@ -419,6 +580,7 @@ else:
             st.session_state.initial_review_done = False
             st.session_state.annotated_pdf = None
             st.session_state.annotations = []
+            st.session_state.resume_name = ''
             st.rerun()
 
     with button_col4:
@@ -518,12 +680,14 @@ else:
             st.markdown("<div class='chat-messages'>", unsafe_allow_html=True)
 
             for message in st.session_state.chat_history:
-                if message['type'] == 'user':
-                    st.markdown(f"<div class='user-message'>👤 {message['content']}</div>", unsafe_allow_html=True)
-                elif message['type'] == 'ai':
-                    st.markdown(f"<div class='ai-message'>🤖 {message['content']}</div>", unsafe_allow_html=True)
-                elif message['type'] == 'system':
-                    st.markdown(f"<div class='system-message'>{message['content']}</div>", unsafe_allow_html=True)
+                msg_type = message.get('type', 'system')
+                msg_content = message.get('content', '')
+                if msg_type == 'user':
+                    st.markdown(f"<div class='user-message'>👤 {msg_content}</div>", unsafe_allow_html=True)
+                elif msg_type == 'ai':
+                    st.markdown(f"<div class='ai-message'>🤖 {msg_content}</div>", unsafe_allow_html=True)
+                elif msg_type == 'system':
+                    st.markdown(f"<div class='system-message'>{msg_content}</div>", unsafe_allow_html=True)
 
             # Show thinking indicator if processing
             if st.session_state.processing:
@@ -549,7 +713,7 @@ else:
 
         # Process initial review
         if st.session_state.processing and st.session_state.initial_review_done and len(
-                [m for m in st.session_state.chat_history if m['type'] == 'ai']) == 0:
+                [m for m in st.session_state.chat_history if m.get('type') == 'ai']) == 0:
             initial_prompt = """Please provide a comprehensive review of this resume including:
 
 1. Overall impression and score (1-10)
@@ -590,8 +754,8 @@ Please be specific and actionable in your feedback."""
             st.rerun()
 
         # Process user query if we're in processing state
-        if st.session_state.processing and st.session_state.chat_history[-1]['type'] == 'user':
-            last_user_message = st.session_state.chat_history[-1]['content']
+        if st.session_state.processing and len(st.session_state.chat_history) > 0 and st.session_state.chat_history[-1].get('type') == 'user':
+            last_user_message = st.session_state.chat_history[-1].get('content', '')
 
             if st.session_state.uploaded_file_ref:
                 ai_response = get_ai_response(last_user_message)
