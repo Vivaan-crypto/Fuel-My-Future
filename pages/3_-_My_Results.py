@@ -241,9 +241,9 @@ st.markdown("<br>", unsafe_allow_html=True)
 filtered_data = st.session_state.interviews_data.copy()
 
 if filter_option == "Resumes":
-    filtered_data = [item for item in filtered_data if item["type"] == "resume"]
+    filtered_data = [item for item in filtered_data if item.get("type") == "resume"]
 elif filter_option == "Interviews":
-    filtered_data = [item for item in filtered_data if item["type"] == "interview"]
+    filtered_data = [item for item in filtered_data if item.get("type") == "interview"]
 elif filter_option == "90%+":
     filtered_data = [item for item in filtered_data if item["score"] >= 90]
 elif filter_option == "80-89%":
@@ -255,13 +255,16 @@ elif filter_option == "Below 70%":
 
 # Search filter
 if search_query:
-    filtered_data = [item for item in filtered_data if search_query.lower() in item["title"].lower()]
+    filtered_data = [
+        item for item in filtered_data
+        if search_query.lower() in item.get("title", "").lower()
+    ]
 
 # Sort data
 if sort_option == "Date (Newest)":
-    filtered_data.sort(key=lambda x: parse_date(x["date"]), reverse=True)
+    filtered_data.sort(key=lambda x: parse_date(x.get("date", "")), reverse=True)
 elif sort_option == "Date (Oldest)":
-    filtered_data.sort(key=lambda x: parse_date(x["date"]))
+    filtered_data.sort(key=lambda x: parse_date(x.get("date", "")))
 elif sort_option == "Score (High to Low)":
     filtered_data.sort(key=lambda x: x["score"], reverse=True)
 elif sort_option == "Score (Low to High)":
@@ -275,7 +278,7 @@ if st.session_state.selected_item is not None:
     header_col1, header_col2, header_col3 = st.columns([1, 6, 1])
     
     with header_col1:
-        score_color = get_score_color(item["score"], item["type"])
+        score_color = get_score_color(item["score"], item.get("type", "interview"))
         st.markdown(f"""
             <div style="background-color: {score_color}; padding: 15px 25px; border-radius: 15px; 
                         font-size: 32px; font-weight: bold; text-align: center; border: 2px solid black;">
@@ -284,8 +287,8 @@ if st.session_state.selected_item is not None:
         """, unsafe_allow_html=True)
     
     with header_col2:
-        st.markdown(f"# {item['title']}")
-        st.markdown(f"**{item['date']}**")
+        st.markdown(f"# {item.get('title', 'Result')}")
+        st.markdown(f"**{item.get('date', '')}**")
     
     with header_col3:
         st.markdown("### 💬")
@@ -361,8 +364,8 @@ else:
                 if i + j < len(filtered_data):
                     item = filtered_data[i + j]
                     with cols[j]:
-                        score_color = get_score_color(item["score"], item["type"])
-                        footer_class = "interview" if item["type"] == "interview" else ""
+                        score_color = get_score_color(item["score"], item.get("type", "interview"))
+                        footer_class = "interview" if item.get("type") == "interview" else ""
                         
                         # Create clickable card
                         card_html = f"""
@@ -374,8 +377,8 @@ else:
                                     RESULT
                                 </div>
                                 <div class="card-footer {footer_class}">
-                                    <div class="card-title">{item['title']}</div>
-                                    <div class="card-date">{item['date']}</div>
+                                    <div class="card-title">{item.get('title', 'Result')}</div>
+                                    <div class="card-date">{item.get('date', '')}</div>
                                 </div>
                             </div>
                         """
