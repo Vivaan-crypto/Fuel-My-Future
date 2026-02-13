@@ -85,7 +85,7 @@ with col2:
 st.markdown("---")
 
 # 5. TABS
-tab1, = st.tabs(["History"])
+tab1, tab2 = st.tabs(["Resume History", "Other Documents"])
 
 # ========================================
 # HISTORY TAB
@@ -97,8 +97,7 @@ with tab1:
         sort_option = st.selectbox("Sort By", ["Most to Least Recent", "Least to Most Recent", "Alphabetical (A-Z)"])
     with col_f2:
         type_filter = st.selectbox("Document Type",
-                                   ["All Documents", "Resume", "LinkedIn Profile", "Job Description", "Professional Bio",
-                                    "Other"])
+                                   ["All Documents"])
 
     # LOGIC
     if type_filter == "All Documents":
@@ -216,3 +215,96 @@ with tab1:
                     else:
                         st.error("Please enter a question.")
 
+# ========================================
+# OTHER DOCUMENTS TAB
+# ========================================
+with tab2:
+    st.write("##")
+    
+    # Upload section
+    uploaded_file = st.file_uploader("Upload a document (PDF format)", type=['pdf'])
+    
+    if uploaded_file is not None:
+        st.success(f"✅ File uploaded: {uploaded_file.name}")
+        
+        # Document name input
+        doc_name = st.text_input("Document Name:", value=uploaded_file.name.replace('.pdf', ''))
+        
+        # Category dropdown
+        doc_category = st.selectbox(
+            "Category:",
+            ["Elevator Pitch", "LinkedIn Profile", "Job Description", "Professional Bio", "Other"]
+        )
+        
+        # Date input
+        doc_date = st.text_input("Date (YYYY-MM-DD):", value=datetime.now().strftime("%Y-%m-%d"))
+        
+        # Save button
+        if st.button("💾 Save Document", type="primary"):
+            # Validate date format
+            try:
+                datetime.strptime(doc_date, "%Y-%m-%d")
+                
+                # Create new document entry
+                new_doc = {
+                    "title": doc_name,
+                    "date": doc_date,
+                    "type": doc_category,
+                    "tldr": f"Uploaded on {datetime.now().strftime('%m/%d/%Y')}"
+                }
+                
+                # Add to session state
+                st.session_state.all_docs.append(new_doc)
+                
+                st.success("✅ Document saved successfully!")
+                st.balloons()
+                
+            except ValueError:
+                st.error("❌ Invalid date format. Please use YYYY-MM-DD")
+    
+    st.write("##")
+    st.markdown("---")
+    st.write("##")
+    
+    # Display uploaded documents in same layout as History tab
+    st.markdown(f"<h2 style='color: var(--text-color); font-weight: 900;'> 📂 Your Uploaded Documents</h2>", unsafe_allow_html=True)
+    
+    st.write("##")
+    
+    # Use same category map
+    category_map = {
+        "Elevator Pitch": {"icon": "📄", "color": "#2563EB", "text": "white"},
+        "LinkedIn Profile": {"icon": "🌐", "color": "#7C3AED", "text": "white"},
+        "Job Description": {"icon": "💼", "color": "#EA580C", "text": "white"},
+        "Professional Bio": {"icon": "👤", "color": "#059669", "text": "white"},
+        "Other": {"icon": "📁", "color": "#475569", "text": "white"}
+    }
+    
+    # Display all documents in grid layout
+    #all_docs_sorted = sorted(st.session_state.all_docs, key=lambda x: x["date"], reverse=True)
+    # Filter out Resumes so they don't show up in the "Other" tab
+    others_only = [d for d in st.session_state.all_docs if d["type"] != "Resume"]
+
+    # Sort the filtered list
+    all_docs_sorted = sorted(others_only, key=lambda x: x["date"], reverse=True)
+    rows = [all_docs_sorted[i:i + 3] for i in range(0, len(all_docs_sorted), 3)]
+
+    for row_idx, row in enumerate(rows):
+        cols = st.columns(3)
+        for i, doc in enumerate(row):
+            cat = category_map.get(doc['type'], category_map["Other"])
+            with cols[i]:
+                with st.container(border=True):
+                    st.markdown(f"### {doc['title']}")
+                    
+                    date_obj = datetime.strptime(doc['date'], "%Y-%m-%d")
+                    st.markdown(f"""
+                        <div style='margin-bottom: 15px;'>
+                            <span style='color: #94A3B8; font-size:0.9rem;'>🗓 {date_obj.strftime("%m-%d-%Y")}</span>
+                            <span style='background-color:{cat['color']}; color:{cat['text']}; padding: 4px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: bold; margin-left: 10px;'>
+                                {cat['icon']} {doc['type']}
+                            </span>
+                        </div>
+                    """, unsafe_allow_html=True)
+                    
+                    st.write("")
