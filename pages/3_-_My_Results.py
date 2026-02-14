@@ -24,7 +24,10 @@ def format_comment_markdown(text):
     items = []
 
     for line in raw_lines:
-        if "•" in line:
+        # Split on both • and ✓ symbols
+        if "•" in line or "✓" in line:
+            # Replace ✓ with • for consistent splitting
+            line = line.replace("✓", "•")
             parts = [part.strip() for part in line.split("•") if part.strip()]
             items.extend(parts)
         else:
@@ -32,13 +35,12 @@ def format_comment_markdown(text):
 
     cleaned = []
     for item in items:
-        cleaned_item = re.sub(r"^(?:[-*]|\d+\.|\d+\)|Step\s*\d+:)\s*", "", item, flags=re.IGNORECASE)
+        # Remove common list markers and checkmarks
+        cleaned_item = re.sub(r"^(?:[-*✓]|\d+\.|\d+\)|Step\s*\d+:)\s*", "", item, flags=re.IGNORECASE)
         cleaned.append(cleaned_item)
 
-    if len(cleaned) > 1:
-        return "\n".join([f"- {item}" for item in cleaned if item])
-
-    return cleaned[0] if cleaned else ""
+    # Format all items as bulleted lists
+    return "\n".join([f"- {item}" for item in cleaned if item])
 
 # Function to load feedback from other pages
 def load_feedback_from_sessions():
@@ -77,7 +79,7 @@ with col1:
     st.image("assets/logo.jpeg", width=150)
 
 with col2:
-    st.title("My Interviews")
+    st.title("My Results")
 
 st.markdown("---")
 
@@ -245,62 +247,66 @@ if st.session_state.selected_item is not None:
     with header_col3:
         st.markdown("### 💬")
     
-    # Content area with two columns (Feedback on the left under Back to List)
-    sidebar_col, content_col = st.columns([1, 2])
-
-    with sidebar_col:
-        if st.button("← Back to List"):
-            st.session_state.selected_item = None
-            st.rerun()
-
-        st.markdown("### Feedback & Notes")
+    # Back button
+    if st.button("← Back to List"):
+        st.session_state.selected_item = None
+        st.rerun()
+    
+    st.markdown("---")
+    
+    # Sidebar for manual notes
+    with st.sidebar:
+        st.markdown("## 📝 Manual Notes")
         
-        # Display existing comments in a styled format
-        if item["comments"]:
-            for comment in item["comments"]:
-                # Display comment title as a bullet point
-                st.markdown(f"**• {comment['title']}**")
+        # Add manual comment section
+        with st.form("comment_form", clear_on_submit=True):
+            comment_title = st.text_input("Note Title")
+            comment_text = st.text_area("Note Details", height=150)
+            submit_button = st.form_submit_button("Add Note")
+            
+            if submit_button and comment_title and comment_text:
+                if "comments" not in item:
+                    item["comments"] = []
+                item["comments"].append({
+                    "title": comment_title,
+                    "text": comment_text
+                })
+                st.success("Note added!")
+                st.rerun()
+    
+    # Main content area with tabs for feedback
+    if item["comments"]:
+        # Create tabs based on comment categories
+        tab_titles = [comment['title'] for comment in item["comments"]]
+        tabs = st.tabs(tab_titles)
+        
+        for idx, comment in enumerate(item["comments"]):
+            with tabs[idx]:
+                st.markdown(f"### {comment['title']}")
                 formatted_text = format_comment_markdown(comment.get("text", ""))
                 if formatted_text:
                     st.markdown(formatted_text)
-        else:
-            st.info("No feedback available yet.")
-        
+                else:
+                    st.markdown(comment.get("text", ""))
+    else:
+        st.info("No feedback available yet. Add manual notes using the sidebar.")
+    
+    # Display Questions and Answers if available (for interviews)
+    if item.get('type') == 'interview' and item.get('questions_and_answers'):
         st.markdown("---")
-        
-        # Add manual comment section (optional)
-        with st.expander("➕ Add Manual Note"):
-            with st.form("comment_form", clear_on_submit=True):
-                comment_title = st.text_input("Note Title")
-                comment_text = st.text_area("Note Details")
-                submit_button = st.form_submit_button("Add Note")
+        st.markdown("### 📝 Interview Questions & Answers")
+        for idx, qa in enumerate(item['questions_and_answers'], 1):
+            with st.expander(f"Q{idx}: {qa['question'][:50]}..."):
+                st.markdown(f"**Question:** {qa['question']}")
+                st.markdown("**Your Answer:**")
+                st.info(qa['answer'])
                 
-                if submit_button and comment_title and comment_text:
-                    if "comments" not in item:
-                        item["comments"] = []
-                    item["comments"].append({
-                        "title": comment_title,
-                        "text": comment_text
-                    })
-                    st.success("Note added!")
-                    st.rerun()
-
-    with content_col:
-        # Display Questions and Answers if available (for interviews)
-        if item.get('type') == 'interview' and item.get('questions_and_answers'):
-            st.markdown("### 📝 Interview Questions & Answers")
-            for idx, qa in enumerate(item['questions_and_answers'], 1):
-                with st.expander(f"Q{idx}: {qa['question'][:50]}..."):
-                    st.markdown(f"**Question:** {qa['question']}")
-                    st.markdown("**Your Answer:**")
-                    st.info(qa['answer'])
-                    
-                    # Display feedback and score if available
-                    if 'feedback' in qa:
-                        st.markdown("**Feedback:**")
-                        st.success(qa['feedback'])
-                    if 'score' in qa:
-                        st.markdown(f"**Score:** {qa['score']}/100")
+                # Display feedback and score if available
+                if 'feedback' in qa:
+                    st.markdown("**Feedback:**")
+                    st.success(qa['feedback'])
+                if 'score' in qa:
+                    st.markdown(f"**Score:** {qa['score']}/100")
     
 else:
     # Display grid of cards
