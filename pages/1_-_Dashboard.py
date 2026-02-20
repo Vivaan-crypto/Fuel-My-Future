@@ -8,10 +8,12 @@ st.set_page_config(layout="wide", page_title="Fuel My Future", page_icon="🚀")
 
 # --- 2. AI SETUP ---
 try:
-    with open('config.yaml', 'r') as f:
-        file = yaml.safe_load(f)
-
-    API_KEY = file['API_KEY']
+    # Prefer environment variable; fall back to config.yaml for local dev convenience
+    API_KEY = os.environ.get('API_KEY', '')
+    if not API_KEY:
+        with open('config.yaml', 'r') as f:
+            file = yaml.safe_load(f)
+        API_KEY = file.get('API_KEY', '') if file else ''
 
     # Determine SDK version
     try:

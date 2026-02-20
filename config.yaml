@@ -1,1 +1,4 @@
-API_KEY: 'AIzaSyBB3OIsPyAtFY5dSI47JLEaGm2HWXHMAGg'
+# API_KEY is loaded from the API_KEY environment variable.
+# Do NOT set a real key here. Set the API_KEY environment variable instead.
+# See .env.example for instructions.
+API_KEY: ''

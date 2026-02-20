@@ -157,10 +157,15 @@ st.markdown("""
 # ========================================
 # LOAD CONFIG AND SETUP CLIENT
 # ========================================
-with open('config.yaml', 'r') as f:
-    file = yaml.safe_load(f)
-
-API_KEY = file['API_KEY']
+# Prefer environment variable; fall back to config.yaml for local dev convenience
+API_KEY = os.environ.get('API_KEY', '')
+if not API_KEY:
+    try:
+        with open('config.yaml', 'r') as f:
+            file = yaml.safe_load(f)
+        API_KEY = file.get('API_KEY', '') if file else ''
+    except FileNotFoundError:
+        API_KEY = ''
 client = None
 
 if genai is None:
