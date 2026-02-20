@@ -15,10 +15,6 @@ An AI-powered platform that provides personalized feedback on resumes and mock i
 5. [Setup](#setup)
 6. [Environment Configuration](#environment-configuration)
 7. [Running the App](#running-the-app)
-8. [Configuration Reference](#configuration-reference)
-9. [Security Notes](#security-notes)
-10. [Contributing](#contributing)
-11. [License](#license)
 
 ---
 
@@ -121,43 +117,3 @@ streamlit run app.py
 ```
 
 The app will open in your browser at `http://localhost:8501`.
-
----
-
-## Configuration Reference
-
-| Variable | Required | Description |
-|---|---|---|
-| `API_KEY` | ✅ Yes | Google Generative AI API key used to power the AI features. |
-
-`config.yaml` is present for reference only. **Do not store real secrets in it.**  
-The application always prefers the `API_KEY` environment variable over any value in `config.yaml`.
-
----
-
-## Security Notes
-
-> ⚠️ **A Google API key was previously committed to this repository.**  
-> That key has been removed and **must be considered compromised**.  
-> If you have access to the Google Cloud / AI Studio console, **rotate or revoke the exposed key immediately** and restrict the replacement key to only the APIs and IPs it needs.
-
-- **Never commit secrets** (API keys, passwords, tokens) to version control — even in private repos.
-- Use `.env` files locally and rotate any key that has ever been exposed.
-- `.env` and `.env.*` are ignored by `.gitignore` in this repository.
-- See [`.env.example`](.env.example) for the list of required environment variables.
-
----
-
-## Contributing
-
-1. Fork the repository and create a feature branch.
-2. Make your changes, ensuring no secrets are committed.
-3. Open a Pull Request with a clear description.
-4. A maintainer will review and merge.
-
----
-
-## License
-
-This project is provided as-is for educational purposes. See the repository for license details.
-
